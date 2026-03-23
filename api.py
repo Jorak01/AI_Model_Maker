@@ -1,18 +1,16 @@
-"""REST API for the conversational AI model."""
+"""REST API for the conversational AI model — threaded server with inference_mode."""
 
-from typing import Optional
+from typing import Optional, Any
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from models.model_factory import load_model
 from models.tokenizer import Tokenizer
 from chat import load_config, get_device, load_model_and_tokenizer, generate_response
-import torch.nn as nn
 
 app = Flask(__name__)
 CORS(app)
 
 # Global state
-_model: Optional[nn.Module] = None
+_model: Any = None
 _tokenizer: Optional[Tokenizer] = None
 _config: Optional[dict] = None
 _device: Optional[str] = None
@@ -31,13 +29,11 @@ def init_model(config_path: str = 'config.yaml', checkpoint: Optional[str] = Non
 
 @app.route('/health', methods=['GET'])
 def health():
-    """Health check endpoint."""
     return jsonify({'status': 'ok', 'model_loaded': _model is not None})
 
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Chat endpoint. Body: {"message": "your message"}"""
     if _model is None or _tokenizer is None or _config is None or _device is None:
         return jsonify({'error': 'Model not loaded', 'status': 'error'}), 503
 
@@ -58,7 +54,6 @@ def chat():
 
 @app.route('/config', methods=['GET'])
 def get_model_config():
-    """Get current model/generation configuration."""
     if _config is None:
         return jsonify({'error': 'Not initialized', 'status': 'error'}), 503
     return jsonify({
@@ -70,9 +65,7 @@ def get_model_config():
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    """Advanced generation with custom params.
-    Body: {"message": "...", "temperature": 0.8, "top_k": 50, "top_p": 0.9, "max_length": 100}
-    """
+    """Advanced generation with custom params."""
     if _model is None or _tokenizer is None or _config is None or _device is None:
         return jsonify({'error': 'Model not loaded', 'status': 'error'}), 503
 
@@ -104,7 +97,8 @@ def main(config_path: str = 'config.yaml', checkpoint: Optional[str] = None):
     print(f"  POST /generate - Generate with custom params")
     print(f"  GET  /health   - Health check")
     print(f"  GET  /config   - View configuration\n")
-    app.run(host=host, port=port, debug=debug)
+    # threaded=True allows concurrent request handling
+    app.run(host=host, port=port, debug=debug, threaded=True)
 
 
 if __name__ == '__main__':

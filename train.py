@@ -1,4 +1,4 @@
-"""Train the conversational AI model."""
+"""Train the conversational AI model — with performance optimizations."""
 
 import os
 import yaml
@@ -31,6 +31,7 @@ def main(config_path: str = 'config.yaml', checkpoint: Optional[str] = None, reb
     tok_path = os.path.join(ckpt_dir, 'tokenizer.pkl')
     base_model = config['model']['base_model']
     pipeline = config['training']['pipeline']
+    perf = config.get('performance', {})
 
     print(f"\nModel: {base_model} | Pipeline: {pipeline}")
 
@@ -48,17 +49,18 @@ def main(config_path: str = 'config.yaml', checkpoint: Optional[str] = None, reb
         os.makedirs(ckpt_dir, exist_ok=True)
         tokenizer.save(tok_path)
 
-    # Data
-    print("Creating data loaders...")
+    # Data (with configurable num_workers for parallel loading)
+    num_workers = perf.get('num_workers', 0)
+    print(f"Creating data loaders (workers={num_workers})...")
     train_loader, test_loader = create_data_loaders(
         config['data']['train_path'], config['data']['test_path'],
-        tokenizer, config['training']['batch_size'], config['model']['max_seq_length']
+        tokenizer, config['training']['batch_size'],
+        config['model']['max_seq_length'], num_workers=num_workers,
     )
 
     # Model (via factory)
     print("Initializing model...")
     if base_model == "custom":
-        # Override vocab_size with actual tokenizer size
         config['model']['vocab_size'] = len(tokenizer)
     model = create_model(config)
 
@@ -67,14 +69,16 @@ def main(config_path: str = 'config.yaml', checkpoint: Optional[str] = None, reb
         ckpt = torch.load(checkpoint, map_location=device)
         model.load_state_dict(ckpt['state_dict'])
 
-    # Train
+    # Train (with AMP and torch.compile from performance config)
     trainer = Trainer(
         model=model, train_loader=train_loader, test_loader=test_loader,
         learning_rate=config['training']['learning_rate'], device=device,
         checkpoint_dir=ckpt_dir, gradient_clip=config['training']['gradient_clip'],
         warmup_steps=config['training']['warmup_steps'],
         weight_decay=config['training']['weight_decay'],
-        pad_token_id=tokenizer.pad_token_id
+        pad_token_id=tokenizer.pad_token_id,
+        use_amp=perf.get('mixed_precision', True),
+        compile_model=perf.get('compile_model', True),
     )
     trainer.train(
         num_epochs=config['training']['num_epochs'],

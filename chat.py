@@ -1,4 +1,4 @@
-"""Interactive chat with the trained AI model."""
+"""Interactive chat with the trained AI model — optimized with inference_mode and torch.compile."""
 
 import os
 import yaml
@@ -19,20 +19,21 @@ def get_device(config: dict) -> str:
     return 'cpu'
 
 
+@torch.inference_mode()
 def generate_response(model, tokenizer: Tokenizer, prompt: str, config: dict, device: str) -> str:
+    """Generate a response — uses inference_mode for fastest inference."""
     model.eval()
     prompt_ids = tokenizer.encode(prompt, add_special=False)
     input_ids = [tokenizer.bos_token_id] + prompt_ids + [tokenizer.sep_token_id]
-    input_tensor = torch.tensor([input_ids]).to(device)
+    input_tensor = torch.tensor([input_ids], device=device)
 
     gen_cfg = config['generation']
-    with torch.no_grad():
-        generated = model.generate(
-            input_tensor, max_length=gen_cfg['max_length'],
-            temperature=gen_cfg['temperature'], top_k=gen_cfg['top_k'],
-            top_p=gen_cfg['top_p'], repetition_penalty=gen_cfg['repetition_penalty'],
-            eos_token_id=tokenizer.eos_token_id
-        )
+    generated = model.generate(
+        input_tensor, max_length=gen_cfg['max_length'],
+        temperature=gen_cfg['temperature'], top_k=gen_cfg['top_k'],
+        top_p=gen_cfg['top_p'], repetition_penalty=gen_cfg['repetition_penalty'],
+        eos_token_id=tokenizer.eos_token_id
+    )
 
     gen_ids = generated[0].tolist()
     try:
@@ -45,7 +46,7 @@ def generate_response(model, tokenizer: Tokenizer, prompt: str, config: dict, de
 
 
 def load_model_and_tokenizer(config: dict, device: str, checkpoint: Optional[str] = None):
-    """Load model and tokenizer from checkpoints."""
+    """Load model and tokenizer from checkpoints, optionally with torch.compile."""
     ckpt_dir = config['checkpoint']['save_dir']
     tok_path = os.path.join(ckpt_dir, 'tokenizer.pkl')
 
@@ -76,6 +77,16 @@ def load_model_and_tokenizer(config: dict, device: str, checkpoint: Optional[str
 
     print(f"Loading model from {checkpoint}")
     model = load_model(checkpoint, device=device)
+
+    # torch.compile for faster inference (PyTorch 2.0+)
+    perf = config.get('performance', {})
+    if perf.get('compile_model', True) and hasattr(torch, 'compile'):
+        try:
+            model = torch.compile(model)  # type: ignore[attr-defined]
+            print("  ⚡ torch.compile() enabled for inference")
+        except Exception:
+            pass
+
     return model, tokenizer
 
 

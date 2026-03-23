@@ -48,6 +48,8 @@ def print_menu():
     print("  12  external       Chat via external API")
     print("  13  providers      List external API providers")
     print("  14  explore        Browse all models (local, saved, API)")
+    print("  15  refresh-models Update model lists (HuggingFace + APIs)")
+    print("  16  model-families List models grouped by family")
     print("  " + "-" * 50)
     print("  0   stop/quit      Exit the runtime")
     print()
@@ -135,7 +137,7 @@ def cmd_config():
         ext = config.get('external_api', {})
         if ext:
             print(f"\n  External APIs:")
-            for prov in ('openai', 'anthropic', 'ollama'):
+            for prov in ('openai', 'anthropic', 'google', 'deepseek', 'ollama'):
                 prov_cfg = ext.get(prov, {})
                 if prov_cfg:
                     key = prov_cfg.get('api_key', '')
@@ -143,7 +145,7 @@ def cmd_config():
                     status = 'configured' if has_key else 'no key'
                     if prov == 'ollama':
                         status = 'local'
-                    print(f"    {prov}: [{status}]")
+                    print(f"    {prov:<12} [{status}]")
         print()
     except Exception as e:
         print(f"\nError reading config: {e}")
@@ -285,6 +287,35 @@ def cmd_providers():
     """List external API providers."""
     from external_api import list_providers
     list_providers()
+
+
+def cmd_refresh_models():
+    """Refresh model lists from HuggingFace Hub and external API providers."""
+    print("\n" + "=" * 55)
+    print("       Model Registry Refresh")
+    print("=" * 55)
+
+    # Refresh local HuggingFace baseline models
+    try:
+        from models.model_factory import refresh_models
+        refresh_models(force=True)
+    except Exception as e:
+        print(f"\n  Error refreshing HuggingFace models: {e}")
+
+    # Refresh external API provider model lists
+    try:
+        from external_api import refresh_provider_models
+        refresh_provider_models(force=True)
+    except Exception as e:
+        print(f"\n  Error refreshing API providers: {e}")
+
+    print("  Refresh complete!")
+
+
+def cmd_model_families():
+    """List models grouped by family."""
+    from models.model_factory import list_models
+    list_models(by_family=True)
 
 
 def cmd_explore():
@@ -548,6 +579,8 @@ def main():
         '12': cmd_external, 'external': cmd_external,
         '13': cmd_providers, 'providers': cmd_providers,
         '14': cmd_explore, 'explore': cmd_explore,
+        '15': cmd_refresh_models, 'refresh-models': cmd_refresh_models, 'refresh': cmd_refresh_models,
+        '16': cmd_model_families, 'model-families': cmd_model_families, 'families': cmd_model_families,
     }
 
     # If command-line args provided, run directly

@@ -1,4 +1,4 @@
-"""Transformer-based conversational AI model."""
+"""Transformer-based conversational AI model — optimized for speed."""
 
 import torch
 import torch.nn as nn
@@ -64,6 +64,10 @@ class ConversationalModel(nn.Module):
         self.out = nn.Linear(embedding_dim, vocab_size)
         self._init_weights()
 
+        # Causal mask cache — avoids re-creating every forward pass
+        self._mask_cache: Optional[torch.Tensor] = None
+        self._mask_cache_len: int = 0
+
     def _init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -74,8 +78,17 @@ class ConversationalModel(nn.Module):
                 nn.init.normal_(m.weight, std=0.02)
 
     def _causal_mask(self, length: int, device: torch.device) -> torch.Tensor:
-        mask = torch.triu(torch.ones(length, length, device=device), diagonal=1)
-        return mask.masked_fill(mask == 1, float('-inf'))
+        """Get a cached causal mask, only recomputing when size changes."""
+        if self._mask_cache is not None and self._mask_cache_len >= length \
+                and self._mask_cache.device == device:
+            return self._mask_cache[:length, :length]
+        # Build mask for max_seq_length to avoid repeated reallocation
+        size = max(length, self.max_seq_length)
+        mask = torch.triu(torch.ones(size, size, device=device), diagonal=1)
+        mask = mask.masked_fill(mask == 1, float('-inf'))
+        self._mask_cache = mask
+        self._mask_cache_len = size
+        return mask[:length, :length]
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         seq_len = input_ids.size(1)
@@ -85,45 +98,55 @@ class ConversationalModel(nn.Module):
             x = block(x, mask)
         return self.out(x)
 
+    @torch.inference_mode()
     def generate(self, input_ids: torch.Tensor, max_length: int = 100,
                  temperature: float = 0.8, top_k: int = 50, top_p: float = 0.9,
                  repetition_penalty: float = 1.2, eos_token_id: Optional[int] = None) -> torch.Tensor:
+        """Generate tokens autoregressively with inference_mode for speed."""
         self.eval()
-        generated = input_ids.clone()
 
-        with torch.no_grad():
-            for _ in range(max_length):
-                logits = self.forward(generated)[:, -1, :] / temperature
+        # Pre-allocate output buffer to avoid repeated torch.cat
+        device = input_ids.device
+        batch_size = input_ids.size(0)
+        max_total = input_ids.size(1) + max_length
+        output = torch.zeros(batch_size, max_total, dtype=torch.long, device=device)
+        cur_len = input_ids.size(1)
+        output[:, :cur_len] = input_ids
 
-                # Repetition penalty
-                if repetition_penalty != 1.0:
-                    for tid in set(generated[0].tolist()):
-                        logits[:, tid] /= repetition_penalty
+        for _ in range(max_length):
+            # Only feed what we have so far (up to max_seq_length window)
+            start = max(0, cur_len - self.max_seq_length)
+            logits = self.forward(output[:, start:cur_len])[:, -1, :] / temperature
 
-                # Top-k filtering
-                if top_k > 0:
-                    k = min(top_k, logits.size(-1))
-                    cutoff = torch.topk(logits, k)[0][..., -1, None]
-                    logits[logits < cutoff] = float('-inf')
+            # Repetition penalty
+            if repetition_penalty != 1.0:
+                generated_so_far = output[0, :cur_len]
+                unique_tokens = generated_so_far.unique()
+                logits[:, unique_tokens] /= repetition_penalty
 
-                # Top-p (nucleus) filtering
-                if top_p < 1.0:
-                    sorted_logits, sorted_idx = torch.sort(logits, descending=True)
-                    cum_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
-                    remove = cum_probs > top_p
-                    remove[..., 1:] = remove[..., :-1].clone()
-                    remove[..., 0] = False
-                    logits[remove.scatter(1, sorted_idx, remove)] = float('-inf')
+            # Top-k filtering
+            if top_k > 0:
+                k = min(top_k, logits.size(-1))
+                cutoff = torch.topk(logits, k)[0][..., -1, None]
+                logits[logits < cutoff] = float('-inf')
 
-                token = torch.multinomial(F.softmax(logits, dim=-1), 1)
-                generated = torch.cat([generated, token], dim=1)
+            # Top-p (nucleus) filtering
+            if top_p < 1.0:
+                sorted_logits, sorted_idx = torch.sort(logits, descending=True)
+                cum_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+                remove = cum_probs > top_p
+                remove[..., 1:] = remove[..., :-1].clone()
+                remove[..., 0] = False
+                logits[remove.scatter(1, sorted_idx, remove)] = float('-inf')
 
-                if eos_token_id is not None and token.item() == eos_token_id:
-                    break
-                if generated.size(1) > self.max_seq_length:
-                    generated = generated[:, -self.max_seq_length:]
+            token = torch.multinomial(F.softmax(logits, dim=-1), 1)
+            output[:, cur_len] = token.squeeze(-1)
+            cur_len += 1
 
-        return generated
+            if eos_token_id is not None and token.item() == eos_token_id:
+                break
+
+        return output[:, :cur_len]
 
     def save(self, path: str):
         torch.save({

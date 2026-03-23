@@ -52,7 +52,8 @@ class TestTrainer:
         try:
             trainer = Trainer(model=model, train_loader=train_loader,
                               test_loader=test_loader, device='cpu',
-                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id)
+                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
+                              compile_model=False)
             assert trainer.device == 'cpu'
             assert trainer.global_step == 0
             assert trainer.best_loss == float('inf')
@@ -64,7 +65,8 @@ class TestTrainer:
         try:
             trainer = Trainer(model=model, train_loader=train_loader,
                               test_loader=test_loader, device='cpu',
-                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id)
+                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
+                              compile_model=False)
             loss = trainer.train_epoch(1)
             assert isinstance(loss, float)
             assert loss > 0
@@ -77,7 +79,8 @@ class TestTrainer:
         try:
             trainer = Trainer(model=model, train_loader=train_loader,
                               test_loader=test_loader, device='cpu',
-                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id)
+                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
+                              compile_model=False)
             loss = trainer.evaluate(1)
             assert isinstance(loss, float)
             assert loss > 0
@@ -89,7 +92,8 @@ class TestTrainer:
         try:
             trainer = Trainer(model=model, train_loader=train_loader,
                               test_loader=test_loader, device='cpu',
-                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id)
+                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
+                              compile_model=False)
             trainer.save_checkpoint(1, is_best=True)
             assert os.path.exists(os.path.join(ckpt_dir, 'model_epoch_1.pt'))
             assert os.path.exists(os.path.join(ckpt_dir, 'best_model.pt'))
@@ -102,7 +106,7 @@ class TestTrainer:
             trainer = Trainer(model=model, train_loader=train_loader,
                               test_loader=test_loader, device='cpu',
                               checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
-                              warmup_steps=2)
+                              warmup_steps=2, compile_model=False)
             trainer.train(num_epochs=2, save_every=1, keep_last=2)
             assert trainer.best_loss < float('inf')
             # Check checkpoints exist
@@ -120,7 +124,8 @@ class TestTrainer:
         try:
             trainer = Trainer(model=model, train_loader=train_loader,
                               test_loader=test_loader, device='cpu',
-                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id)
+                              checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
+                              compile_model=False)
             # Optimizer should only have trainable params
             opt_params = sum(len(pg['params']) for pg in trainer.optimizer.param_groups)
             trainable = sum(1 for p in model.parameters() if p.requires_grad)

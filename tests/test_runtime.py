@@ -421,7 +421,7 @@ class TestTrainerRuntime:
         trainer = Trainer(model=model, train_loader=train_loader,
                           test_loader=test_loader, device='cpu',
                           checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
-                          warmup_steps=0)
+                          warmup_steps=0, compile_model=False)
         loss1 = trainer.train_epoch(1)
         loss2 = trainer.train_epoch(2)
         # Loss should generally decrease (or at least not crash)
@@ -435,7 +435,7 @@ class TestTrainerRuntime:
         trainer = Trainer(model=model, train_loader=train_loader,
                           test_loader=test_loader, device='cpu',
                           checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
-                          warmup_steps=0)
+                          warmup_steps=0, compile_model=False)
         trainer.train(num_epochs=1, save_every=1, keep_last=2)
 
         # Verify checkpoint exists
@@ -785,7 +785,7 @@ class TestIntegration:
         trainer = Trainer(model=model, train_loader=train_loader,
                           test_loader=test_loader, device='cpu',
                           checkpoint_dir=ckpt_dir, pad_token_id=tok.pad_token_id,
-                          warmup_steps=0)
+                          warmup_steps=0, compile_model=False)
         trainer.train(num_epochs=2, save_every=1, keep_last=2)
 
         # Load and generate
@@ -830,7 +830,8 @@ class TestIntegration:
         ckpt_dir = str(tmp_path / "ckpt")
         trainer = Trainer(model=model, train_loader=train_loader,
                           test_loader=test_loader, device='cpu',
-                          checkpoint_dir=ckpt_dir, pad_token_id=0, warmup_steps=0)
+                          checkpoint_dir=ckpt_dir, pad_token_id=0, warmup_steps=0,
+                          compile_model=False)
         loss = trainer.train_epoch(1)
         assert isinstance(loss, float)
         assert loss > 0
