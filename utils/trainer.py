@@ -36,10 +36,12 @@ class Trainer:
         # ── Performance: torch.compile (PyTorch 2.0+) ──
         if compile_model and hasattr(torch, 'compile'):
             try:
-                model = torch.compile(model)  # type: ignore[attr-defined]
+                import torch._dynamo as _dynamo  # type: ignore[import]
+                _dynamo.config.suppress_errors = True  # type: ignore[attr-defined]
+                model = torch.compile(model, mode="reduce-overhead")  # type: ignore[attr-defined]
                 print("  ⚡ torch.compile() enabled")
             except Exception:
-                pass  # Fallback gracefully if compile fails
+                pass  # Fallback gracefully if compile/inductor not available
 
         self.model = model.to(device)
 

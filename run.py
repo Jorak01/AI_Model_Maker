@@ -31,27 +31,34 @@ def print_banner():
 
 
 def print_menu():
-    print("\n  Commands:")
-    print("  " + "-" * 50)
-    print("  1   train          Train the model")
-    print("  2   chat           Interactive chat (local model)")
-    print("  3   api            Start REST API server")
-    print("  4   models         List available base models")
-    print("  5   pipelines      List training pipelines")
-    print("  6   config         Show current configuration")
-    print("  7   status         Check model/checkpoint status")
-    print("  8   test           Run all tests")
-    print("  " + "-" * 50)
-    print("  9   prompt-train   Create model from prompts")
-    print("  10  registry       List registered models")
-    print("  11  load-model     Chat with a registered model")
-    print("  12  external       Chat via external API")
-    print("  13  providers      List external API providers")
-    print("  14  explore        Browse all models (local, saved, API)")
-    print("  15  refresh-models Update model lists (HuggingFace + APIs)")
-    print("  16  model-families List models grouped by family")
-    print("  " + "-" * 50)
-    print("  0   stop/quit      Exit the runtime")
+    print()
+    print("  ─── Training & Chat ─────────────────────────")
+    print("   1  train           Train the model")
+    print("   2  chat            Interactive chat (local)")
+    print("   3  prompt-train    Create model from prompts")
+    print("   4  image-gen       Image generation & training")
+    print()
+    print("  ─── Model Management ────────────────────────")
+    print("   5  load            Load any model by number")
+    print("   6  explore         Browse all models")
+    print("   7  registry        List registered models")
+    print("   8  load-model      Chat with registered model")
+    print()
+    print("  ─── External & API ──────────────────────────")
+    print("   9  external        Chat via external API")
+    print("  10  providers       List API providers")
+    print("  11  api             Start REST API server")
+    print()
+    print("  ─── Info & System ───────────────────────────")
+    print("  12  models          Available base models")
+    print("  13  pipelines       Training pipelines")
+    print("  14  model-families  Models grouped by family")
+    print("  15  config          Show configuration")
+    print("  16  status          Model/checkpoint status")
+    print("  17  refresh-models  Update model lists")
+    print("  18  test            Run all tests")
+    print()
+    print("   0  stop / quit     Exit")
     print()
 
 
@@ -318,6 +325,28 @@ def cmd_model_families():
     list_models(by_family=True)
 
 
+def cmd_load():
+    """Load any model by number — chat or train."""
+    from model_loader import interactive_load_and_act
+    try:
+        interactive_load_and_act()
+    except KeyboardInterrupt:
+        print("\n  Model loader cancelled.")
+    except Exception as e:
+        print(f"\n  Model loader error: {e}")
+
+
+def cmd_image_gen():
+    """Image generation and tag-based training."""
+    from image_gen import interactive_image_gen
+    try:
+        interactive_image_gen()
+    except KeyboardInterrupt:
+        print("\n  Image generation cancelled.")
+    except Exception as e:
+        print(f"\n  Image generation error: {e}")
+
+
 def cmd_explore():
     """Unified model explorer — access local, saved, and API models from one place."""
     print("\n" + "=" * 55)
@@ -449,7 +478,7 @@ def _explore_saved():
 
     if not models:
         print("\n  No registered models yet.")
-        print("  Use 'prompt-train' (option 9) to create and register a custom model.")
+        print("  Use 'prompt-train' (option 3) to create and register a custom model.")
         return
 
     list_registered_models()
@@ -565,22 +594,28 @@ def main():
     print_banner()
 
     commands = {
+        # Training & Chat
         '1': cmd_train, 'train': cmd_train,
         '2': cmd_chat, 'chat': cmd_chat,
-        '3': cmd_api, 'api': cmd_api,
-        '4': cmd_models, 'models': cmd_models,
-        '5': cmd_pipelines, 'pipelines': cmd_pipelines,
-        '6': cmd_config, 'config': cmd_config,
-        '7': cmd_status, 'status': cmd_status,
-        '8': cmd_test, 'test': cmd_test,
-        '9': cmd_prompt_train, 'prompt-train': cmd_prompt_train,
-        '10': cmd_registry, 'registry': cmd_registry,
-        '11': cmd_load_model, 'load-model': cmd_load_model,
-        '12': cmd_external, 'external': cmd_external,
-        '13': cmd_providers, 'providers': cmd_providers,
-        '14': cmd_explore, 'explore': cmd_explore,
-        '15': cmd_refresh_models, 'refresh-models': cmd_refresh_models, 'refresh': cmd_refresh_models,
-        '16': cmd_model_families, 'model-families': cmd_model_families, 'families': cmd_model_families,
+        '3': cmd_prompt_train, 'prompt-train': cmd_prompt_train,
+        '4': cmd_image_gen, 'image-gen': cmd_image_gen, 'image': cmd_image_gen,
+        # Model Management
+        '5': cmd_load, 'load': cmd_load,
+        '6': cmd_explore, 'explore': cmd_explore,
+        '7': cmd_registry, 'registry': cmd_registry,
+        '8': cmd_load_model, 'load-model': cmd_load_model,
+        # External & API
+        '9': cmd_external, 'external': cmd_external,
+        '10': cmd_providers, 'providers': cmd_providers,
+        '11': cmd_api, 'api': cmd_api,
+        # Info & System
+        '12': cmd_models, 'models': cmd_models,
+        '13': cmd_pipelines, 'pipelines': cmd_pipelines,
+        '14': cmd_model_families, 'model-families': cmd_model_families, 'families': cmd_model_families,
+        '15': cmd_config, 'config': cmd_config,
+        '16': cmd_status, 'status': cmd_status,
+        '17': cmd_refresh_models, 'refresh-models': cmd_refresh_models, 'refresh': cmd_refresh_models,
+        '18': cmd_test, 'test': cmd_test,
     }
 
     # If command-line args provided, run directly

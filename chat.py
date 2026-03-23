@@ -82,7 +82,8 @@ def load_model_and_tokenizer(config: dict, device: str, checkpoint: Optional[str
     perf = config.get('performance', {})
     if perf.get('compile_model', True) and hasattr(torch, 'compile'):
         try:
-            model = torch.compile(model)  # type: ignore[attr-defined]
+            torch._dynamo.config.suppress_errors = True  # type: ignore[attr-defined]
+            model = torch.compile(model, mode="reduce-overhead")  # type: ignore[attr-defined]
             print("  ⚡ torch.compile() enabled for inference")
         except Exception:
             pass

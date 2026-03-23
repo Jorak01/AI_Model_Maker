@@ -103,12 +103,36 @@ class TestModuleImports:
         assert hasattr(external_api, 'is_provider_configured')
         assert hasattr(external_api, 'find_available_provider')
 
+    def test_import_model_loader(self):
+        import model_loader
+        assert hasattr(model_loader, 'build_model_catalog')
+        assert hasattr(model_loader, 'display_catalog')
+        assert hasattr(model_loader, 'load_model_by_number')
+        assert hasattr(model_loader, 'load_model_by_name')
+        assert hasattr(model_loader, 'train_loaded_model')
+        assert hasattr(model_loader, 'interactive_load_and_act')
+        assert hasattr(model_loader, 'verify_model_entry')
+        assert hasattr(model_loader, 'repair_model_entry')
+
+    def test_import_image_gen(self):
+        import image_gen
+        assert hasattr(image_gen, 'IMAGE_GEN_MODELS')
+        assert hasattr(image_gen, 'TAG_SITE_FORMATS')
+        assert hasattr(image_gen, 'normalize_tags')
+        assert hasattr(image_gen, 'parse_tag_file')
+        assert hasattr(image_gen, 'create_tag_dataset')
+        assert hasattr(image_gen, 'list_image_models')
+        assert hasattr(image_gen, 'generate_image')
+        assert hasattr(image_gen, 'train_image_model')
+        assert hasattr(image_gen, 'interactive_image_gen')
+
     def test_import_run(self):
         import run
         assert hasattr(run, 'main')
         assert hasattr(run, 'print_menu')
         assert hasattr(run, 'print_banner')
         assert hasattr(run, 'cmd_explore')
+        assert hasattr(run, 'cmd_load')
         assert hasattr(run, '_explore_local')
         assert hasattr(run, '_explore_saved')
         assert hasattr(run, '_explore_api')
@@ -659,6 +683,12 @@ class TestRunMenu:
         from run import print_menu
         print_menu()
         captured = capsys.readouterr()
+        # Section headers
+        assert "Training & Chat" in captured.out
+        assert "Model Management" in captured.out
+        assert "External & API" in captured.out
+        assert "Info & System" in captured.out
+        # Commands present
         assert "train" in captured.out
         assert "chat" in captured.out
         assert "api" in captured.out
@@ -666,6 +696,8 @@ class TestRunMenu:
         assert "registry" in captured.out
         assert "external" in captured.out
         assert "explore" in captured.out
+        assert "load" in captured.out
+        assert "image-gen" in captured.out
         assert "stop" in captured.out
 
     def test_cmd_models(self, capsys):
@@ -846,6 +878,7 @@ class TestFileStructure:
     EXPECTED_FILES = [
         'run.py', 'train.py', 'chat.py', 'api.py',
         'model_registry.py', 'prompt_trainer.py', 'external_api.py',
+        'model_loader.py', 'image_gen.py',
         'config.yaml', 'requirements.txt', 'README.md',
         'models/__init__.py', 'models/model.py', 'models/tokenizer.py',
         'models/model_factory.py',
@@ -865,6 +898,7 @@ class TestFileStructure:
             'tests/test_trainer.py', 'tests/test_api.py',
             'tests/test_registry.py', 'tests/test_prompt_trainer.py',
             'tests/test_external_api.py', 'tests/test_runtime.py',
+            'tests/test_model_loader.py', 'tests/test_image_gen.py',
         ]
         for f in test_files:
             assert os.path.exists(f), f"Missing test file: {f}"

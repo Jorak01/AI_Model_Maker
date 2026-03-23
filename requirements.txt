@@ -19,5 +19,11 @@ requests>=2.31.0
 # Testing
 pytest>=7.0.0
 
+# Image Generation (optional)
+diffusers>=0.25.0
+Pillow>=10.0.0
+# peft>=0.7.0  # Optional: LoRA fine-tuning
+# torchvision>=0.15.0  # Optional: image transforms for training
+
 # Optional
 tensorboard>=2.13.0
