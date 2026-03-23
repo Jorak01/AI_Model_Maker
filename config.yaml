@@ -1,0 +1,71 @@
+# Conversational AI Model Configuration
+
+# Model Selection
+# Options: "custom", "gpt2", "distilgpt2", "gpt2-medium", "pythia-160m", "pythia-410m"
+model:
+  base_model: "custom"        # Which baseline model to use
+  vocab_size: 10000           # Only used for "custom" model
+  embedding_dim: 256          # Only used for "custom" model
+  hidden_dim: 512             # Only used for "custom" model
+  num_layers: 4               # Only used for "custom" model
+  num_heads: 8                # Only used for "custom" model
+  dropout: 0.1
+  max_seq_length: 128
+
+# Training Pipeline
+# Options: "scratch", "finetune", "freeze"
+#   scratch  - Train custom model from scratch
+#   finetune - Fine-tune all layers of a pretrained model
+#   freeze   - Freeze base layers, only train top layers
+training:
+  pipeline: "scratch"
+  batch_size: 32
+  learning_rate: 0.0001
+  num_epochs: 10
+  gradient_clip: 1.0
+  warmup_steps: 500
+  weight_decay: 0.01
+  freeze_layers: 4            # How many layers to freeze (for "freeze" pipeline)
+
+data:
+  train_path: "data/train.json"
+  test_path: "data/test.json"
+
+checkpoint:
+  save_dir: "checkpoints"
+  save_every: 1
+  keep_last: 5
+
+generation:
+  max_length: 100
+  temperature: 0.8
+  top_k: 50
+  top_p: 0.9
+  repetition_penalty: 1.2
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+
+# External API Configuration (for calling remote models)
+external_api:
+  openai:
+    api_key: ""                # Or set OPENAI_API_KEY env variable
+    base_url: "https://api.openai.com/v1"
+    default_model: "gpt-4o-mini"
+  anthropic:
+    api_key: ""                # Or set ANTHROPIC_API_KEY env variable
+    base_url: "https://api.anthropic.com/v1"
+    default_model: "claude-3-haiku-20240307"
+  ollama:
+    base_url: "http://localhost:11434"
+    default_model: "llama3"
+  custom:
+    api_key: ""                # Or set CUSTOM_API_KEY env variable
+    base_url: ""
+    default_model: ""
+
+device:
+  use_cuda: true
+  cuda_device: 0

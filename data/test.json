@@ -1,0 +1,22 @@
+[
+    {
+        "prompt": "Hi there!",
+        "response": "Hi! Great to see you! How can I assist you today?"
+    },
+    {
+        "prompt": "What is data science?",
+        "response": "Data science is an interdisciplinary field that uses scientific methods, algorithms, and systems to extract knowledge and insights from structured and unstructured data."
+    },
+    {
+        "prompt": "How can I improve my skills?",
+        "response": "Practice consistently, work on real projects, learn from others, seek feedback, and stay curious. Continuous learning and application are essential for skill development."
+    },
+    {
+        "prompt": "What are transformers in AI?",
+        "response": "Transformers are a type of neural network architecture that uses attention mechanisms to process sequential data. They're highly effective for NLP tasks and power models like GPT."
+    },
+    {
+        "prompt": "Thanks!",
+        "response": "You're welcome! Happy to help anytime!"
+    }
+]

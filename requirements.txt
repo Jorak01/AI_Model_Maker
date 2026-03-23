@@ -1,0 +1,23 @@
+# Core
+torch>=2.0.0
+numpy>=1.24.0
+
+# Pretrained Models
+transformers>=4.30.0
+
+# Config
+pyyaml>=6.0
+
+# Progress
+tqdm>=4.65.0
+
+# API
+flask>=3.0.0
+flask-cors>=4.0.0
+requests>=2.31.0
+
+# Testing
+pytest>=7.0.0
+
+# Optional
+tensorboard>=2.13.0
