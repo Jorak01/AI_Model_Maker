@@ -1,5 +1,7 @@
 AI_Model.code-workspace
-checkpoints
 data
 logs
 external_api.py
+.pytest_cache
+/.vscode
+/checkpoints
