@@ -112,6 +112,12 @@ def _get_api_key(provider: str) -> Optional[str]:
 
 
 def _get_base_url(provider: str) -> str:
+    # 1. Check environment variable first (e.g. OPENAI_BASE_URL)
+    env_key = f"{provider.upper()}_BASE_URL"
+    env_url = os.environ.get(env_key, "")
+    if env_url:
+        return env_url
+    # 2. Fall back to config.yaml
     try:
         config = load_config()
         url = config.get("external_api", {}).get(provider, {}).get("base_url", "")
@@ -119,6 +125,7 @@ def _get_base_url(provider: str) -> str:
             return url
     except Exception:
         pass
+    # 3. Fall back to hardcoded PROVIDERS dict
     return PROVIDERS.get(provider, {}).get("base_url", "")
 
 

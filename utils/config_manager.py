@@ -56,18 +56,66 @@ CONFIG_SCHEMA = {
 }
 
 # Environment variable mapping
+# These map env vars → (config_section, config_key, converter)
 ENV_OVERRIDES = {
+    # Device
     "AI_MODEL_DEVICE": ("device", "use_cuda", lambda v: v.lower() != "cpu"),
     "AI_MODEL_CUDA_DEVICE": ("device", "cuda_device", int),
+    # Model / Training
     "AI_MODEL_BASE_MODEL": ("model", "base_model", str),
+    "AI_MODEL_BASE": ("model", "base_model", str),
     "AI_MODEL_PIPELINE": ("training", "pipeline", str),
     "AI_MODEL_EPOCHS": ("training", "num_epochs", int),
     "AI_MODEL_BATCH_SIZE": ("training", "batch_size", int),
+    "AI_MODEL_BATCH": ("training", "batch_size", int),
     "AI_MODEL_LR": ("training", "learning_rate", float),
+    # Generation
     "AI_MODEL_MAX_LENGTH": ("generation", "max_length", int),
     "AI_MODEL_TEMPERATURE": ("generation", "temperature", float),
+    # API server
     "AI_MODEL_API_PORT": ("api", "port", int),
     "AI_MODEL_API_HOST": ("api", "host", str),
+}
+
+# Env vars for external API keys, base URLs, and default models.
+# These are applied separately onto the external_api section.
+ENV_EXTERNAL_API = {
+    "openai": {
+        "api_key": "OPENAI_API_KEY",
+        "base_url": "OPENAI_BASE_URL",
+        "default_model": "OPENAI_DEFAULT_MODEL",
+    },
+    "anthropic": {
+        "api_key": "ANTHROPIC_API_KEY",
+        "base_url": "ANTHROPIC_BASE_URL",
+        "default_model": "ANTHROPIC_DEFAULT_MODEL",
+    },
+    "google": {
+        "api_key": "GOOGLE_API_KEY",
+        "base_url": "GOOGLE_BASE_URL",
+        "default_model": "GOOGLE_DEFAULT_MODEL",
+    },
+    "deepseek": {
+        "api_key": "DEEPSEEK_API_KEY",
+        "base_url": "DEEPSEEK_BASE_URL",
+        "default_model": "DEEPSEEK_DEFAULT_MODEL",
+    },
+    "ollama": {
+        "base_url": "OLLAMA_BASE_URL",
+        "default_model": "OLLAMA_DEFAULT_MODEL",
+    },
+    "custom": {
+        "api_key": "CUSTOM_API_KEY",
+        "base_url": "CUSTOM_BASE_URL",
+        "default_model": "CUSTOM_DEFAULT_MODEL",
+    },
+}
+
+# Env vars for service ports (used by Docker and direct launch)
+ENV_SERVICE_PORTS = {
+    "AI_MODEL_COMPAT_PORT": ("compat_api_port", int, 8001),
+    "AI_MODEL_WEBUI_PORT": ("webui_port", int, 7860),
+    "AI_MODEL_DASHBOARD_PORT": ("dashboard_port", int, 5555),
 }
 
 
@@ -161,10 +209,17 @@ def create_default_profiles(config_dir: str = "."):
 # ---------------------------------------------------------------------------
 
 def apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Apply environment variable overrides to config."""
+    """Apply ALL environment variable overrides to config.
+
+    Handles:
+      - Core config overrides (device, training, generation, API server)
+      - External API keys, base URLs, and default models
+      - Service port overrides
+    """
     config = copy.deepcopy(config)
     applied = []
 
+    # 1. Core config overrides
     for env_var, (section, key, converter) in ENV_OVERRIDES.items():
         value = os.environ.get(env_var)
         if value is not None:
@@ -172,7 +227,30 @@ def apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
                 converted = converter(value)
                 if section in config:
                     config[section][key] = converted
-                    applied.append(f"{env_var}={value} → {section}.{key}")
+                    applied.append(f"{env_var} → {section}.{key}")
+            except (ValueError, TypeError) as e:
+                print(f"  ⚠ Invalid {env_var}={value}: {e}")
+
+    # 2. External API keys, base URLs, default models
+    ext = config.get("external_api", {})
+    for provider, mapping in ENV_EXTERNAL_API.items():
+        if provider not in ext:
+            ext[provider] = {}
+        for cfg_key, env_var in mapping.items():
+            value = os.environ.get(env_var)
+            if value is not None and value != "":
+                ext[provider][cfg_key] = value
+                applied.append(f"{env_var} → external_api.{provider}.{cfg_key}")
+    config["external_api"] = ext
+
+    # 3. Service port overrides (stored in a flat 'ports' sub-dict)
+    for env_var, (port_key, converter, default) in ENV_SERVICE_PORTS.items():
+        value = os.environ.get(env_var)
+        if value is not None:
+            try:
+                converted = converter(value)
+                config.setdefault("ports", {})[port_key] = converted
+                applied.append(f"{env_var} → ports.{port_key}")
             except (ValueError, TypeError) as e:
                 print(f"  ⚠ Invalid {env_var}={value}: {e}")
 
@@ -182,6 +260,45 @@ def apply_env_overrides(config: Dict[str, Any]) -> Dict[str, Any]:
             print(f"    {a}")
 
     return config
+
+
+def get_service_port(service: str, config: Optional[Dict] = None) -> int:
+    """Get the port for a service, checking env vars first, then config.
+
+    Args:
+        service: One of 'api', 'compat_api', 'webui', 'dashboard'
+        config: Optional config dict (loads from file if None)
+
+    Returns:
+        Port number
+    """
+    env_map = {
+        "api": "AI_MODEL_API_PORT",
+        "compat_api": "AI_MODEL_COMPAT_PORT",
+        "webui": "AI_MODEL_WEBUI_PORT",
+        "dashboard": "AI_MODEL_DASHBOARD_PORT",
+    }
+    defaults = {
+        "api": 8000,
+        "compat_api": 8001,
+        "webui": 7860,
+        "dashboard": 5555,
+    }
+    env_var = env_map.get(service)
+    if env_var:
+        val = os.environ.get(env_var)
+        if val is not None:
+            try:
+                return int(val)
+            except ValueError:
+                pass
+    if config:
+        port_val = config.get("ports", {}).get(f"{service}_port")
+        if port_val is not None:
+            return int(port_val)
+        if service == "api":
+            return int(config.get("api", {}).get("port", defaults["api"]))
+    return defaults.get(service, 8000)
 
 
 # ---------------------------------------------------------------------------

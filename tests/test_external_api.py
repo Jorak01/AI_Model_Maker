@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from external_api import (
+from services.external_api import (
     ExternalAPIClient, PROVIDERS, list_providers, api_call,
     is_provider_configured, find_available_provider,
     refresh_provider_models, _load_api_cache, _save_api_cache,
@@ -90,51 +90,51 @@ class TestIsProviderConfigured:
         if not os.environ.get("DEEPSEEK_API_KEY"):
             assert is_provider_configured("deepseek") is False
 
-    @patch('external_api._get_api_key', return_value="test-key-123")
+    @patch('services.external_api._get_api_key', return_value="test-key-123")
     def test_openai_configured_with_key(self, mock_key):
         assert is_provider_configured("openai") is True
 
-    @patch('external_api._get_api_key', return_value="test-key-123")
+    @patch('services.external_api._get_api_key', return_value="test-key-123")
     def test_google_configured_with_key(self, mock_key):
         assert is_provider_configured("google") is True
 
-    @patch('external_api.requests.get')
+    @patch('services.external_api.requests.get')
     def test_ollama_configured_when_running(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_get.return_value = mock_resp
         assert is_provider_configured("ollama") is True
 
-    @patch('external_api.requests.get', side_effect=Exception("Connection refused"))
+    @patch('services.external_api.requests.get', side_effect=Exception("Connection refused"))
     def test_ollama_not_configured_when_down(self, mock_get):
         assert is_provider_configured("ollama") is False
 
-    @patch('external_api._get_api_key', return_value=None)
+    @patch('services.external_api._get_api_key', return_value=None)
     def test_custom_needs_key_and_url(self, mock_key):
         assert is_provider_configured("custom") is False
 
 
 class TestFindAvailableProvider:
-    @patch('external_api.is_provider_configured', return_value=False)
+    @patch('services.external_api.is_provider_configured', return_value=False)
     def test_no_providers_available(self, mock_configured, capsys):
         result = find_available_provider()
         assert result is None
         captured = capsys.readouterr()
         assert "Skipping" in captured.out
 
-    @patch('external_api.is_provider_configured')
+    @patch('services.external_api.is_provider_configured')
     def test_finds_first_configured(self, mock_configured, capsys):
         mock_configured.side_effect = lambda p: p == "anthropic"
         result = find_available_provider(["openai", "anthropic", "ollama"])
         assert result == "anthropic"
 
-    @patch('external_api.is_provider_configured')
+    @patch('services.external_api.is_provider_configured')
     def test_respects_preferred_order(self, mock_configured):
         mock_configured.side_effect = lambda p: p in ("openai", "ollama")
         result = find_available_provider(["ollama", "openai"])
         assert result == "ollama"
 
-    @patch('external_api.is_provider_configured', return_value=False)
+    @patch('services.external_api.is_provider_configured', return_value=False)
     def test_skips_all_unconfigured(self, mock_configured, capsys):
         result = find_available_provider(["openai", "anthropic"])
         assert result is None
@@ -143,14 +143,14 @@ class TestFindAvailableProvider:
         assert "Skipping anthropic" in captured.out
 
     def test_ignores_unknown_providers(self):
-        with patch('external_api.is_provider_configured', return_value=False):
+        with patch('services.external_api.is_provider_configured', return_value=False):
             result = find_available_provider(["nonexistent", "fake"])
             assert result is None
 
 
 class TestAPICache:
     def test_load_empty_cache(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("external_api._API_CACHE_FILE",
+        monkeypatch.setattr("services.external_api._API_CACHE_FILE",
                             str(tmp_path / "nonexistent.json"))
         cache = _load_api_cache()
         assert cache == {}
@@ -158,8 +158,8 @@ class TestAPICache:
     def test_save_and_load_cache(self, tmp_path, monkeypatch):
         cache_file = str(tmp_path / "cache.json")
         cache_dir = str(tmp_path)
-        monkeypatch.setattr("external_api._API_CACHE_FILE", cache_file)
-        monkeypatch.setattr("external_api._API_CACHE_DIR", cache_dir)
+        monkeypatch.setattr("services.external_api._API_CACHE_FILE", cache_file)
+        monkeypatch.setattr("services.external_api._API_CACHE_DIR", cache_dir)
 
         data = {"last_updated": "2026-01-01T00:00:00", "providers": {"openai": ["gpt-4o"]}}
         _save_api_cache(data)
@@ -167,13 +167,13 @@ class TestAPICache:
         assert loaded["providers"]["openai"] == ["gpt-4o"]
 
     def test_stale_cache(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("external_api._API_CACHE_FILE",
+        monkeypatch.setattr("services.external_api._API_CACHE_FILE",
                             str(tmp_path / "nonexistent.json"))
         assert _api_cache_is_stale() is True
 
 
 class TestFetchModels:
-    @patch('external_api.requests.get')
+    @patch('services.external_api.requests.get')
     def test_fetch_openai_models(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -193,7 +193,7 @@ class TestFetchModels:
         # dall-e should be excluded by chat filter
         assert "dall-e-3" not in models
 
-    @patch('external_api.requests.get')
+    @patch('services.external_api.requests.get')
     def test_fetch_ollama_models(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -209,7 +209,7 @@ class TestFetchModels:
         assert "llama3.2" in models
         assert "mistral" in models
 
-    @patch('external_api.requests.get')
+    @patch('services.external_api.requests.get')
     def test_fetch_google_models(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -226,12 +226,12 @@ class TestFetchModels:
         # Embedding model should be filtered out
         assert "text-embedding-004" not in models
 
-    @patch('external_api.requests.get', side_effect=Exception("timeout"))
+    @patch('services.external_api.requests.get', side_effect=Exception("timeout"))
     def test_fetch_openai_models_timeout(self, mock_get):
         models = _fetch_openai_models("key", "https://api.openai.com/v1")
         assert models == []
 
-    @patch('external_api.requests.get')
+    @patch('services.external_api.requests.get')
     def test_fetch_deepseek_models(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -244,26 +244,26 @@ class TestFetchModels:
         assert "deepseek-chat" in models
         assert "deepseek-reasoner" in models
 
-    @patch('external_api.requests.get', side_effect=Exception("timeout"))
+    @patch('services.external_api.requests.get', side_effect=Exception("timeout"))
     def test_fetch_deepseek_models_timeout(self, mock_get):
         models = _fetch_deepseek_models("key", "https://api.deepseek.com/v1")
         assert models == []
 
-    @patch('external_api.requests.get', side_effect=Exception("timeout"))
+    @patch('services.external_api.requests.get', side_effect=Exception("timeout"))
     def test_fetch_ollama_models_timeout(self, mock_get):
         models = _fetch_ollama_models("http://localhost:11434")
         assert models == []
 
 
 class TestRefreshProviderModels:
-    @patch('external_api.is_provider_configured', return_value=False)
-    @patch('external_api._get_api_key', return_value=None)
+    @patch('services.external_api.is_provider_configured', return_value=False)
+    @patch('services.external_api._get_api_key', return_value=None)
     def test_refresh_with_no_providers(self, mock_key, mock_configured,
                                        tmp_path, monkeypatch):
         cache_file = str(tmp_path / "cache.json")
         cache_dir = str(tmp_path)
-        monkeypatch.setattr("external_api._API_CACHE_FILE", cache_file)
-        monkeypatch.setattr("external_api._API_CACHE_DIR", cache_dir)
+        monkeypatch.setattr("services.external_api._API_CACHE_FILE", cache_file)
+        monkeypatch.setattr("services.external_api._API_CACHE_DIR", cache_dir)
 
         results = refresh_provider_models(force=True, verbose=False)
         assert isinstance(results, dict)
@@ -310,7 +310,7 @@ class TestExternalAPIClient:
         captured = capsys.readouterr()
         assert "Warning" not in captured.out
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_openai_chat(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -329,7 +329,7 @@ class TestExternalAPIClient:
         assert client.conversation_history[1]["role"] == "assistant"
         mock_post.assert_called_once()
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_anthropic_chat(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -346,7 +346,7 @@ class TestExternalAPIClient:
         assert response == "Hello from Claude!"
         mock_post.assert_called_once()
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_google_chat(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -366,7 +366,7 @@ class TestExternalAPIClient:
         assert response == "Hello from Gemini!"
         mock_post.assert_called_once()
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_deepseek_chat(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -382,7 +382,7 @@ class TestExternalAPIClient:
         assert response == "Hello from DeepSeek!"
         mock_post.assert_called_once()
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_ollama_chat(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -398,7 +398,7 @@ class TestExternalAPIClient:
         assert response == "Hello from Llama!"
         mock_post.assert_called_once()
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_chat_with_system_prompt(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
@@ -420,7 +420,7 @@ class TestExternalAPIClient:
         response = client.chat("Hello")
         assert "[API Error" in response
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_multi_turn_conversation(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
@@ -435,7 +435,7 @@ class TestExternalAPIClient:
 
         assert len(client.conversation_history) == 4  # 2 user + 2 assistant
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_custom_provider_chat(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
@@ -451,7 +451,7 @@ class TestExternalAPIClient:
 
 
 class TestApiCall:
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_single_call(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
@@ -463,7 +463,7 @@ class TestApiCall:
         result = api_call("openai", "gpt-4o", "What is AI?", api_key="test-key")
         assert result == "Answer"
 
-    @patch('external_api.requests.post')
+    @patch('services.external_api.requests.post')
     def test_single_call_google(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {

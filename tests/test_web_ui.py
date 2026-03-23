@@ -10,7 +10,7 @@ except ImportError:
     HAS_FLASK = False
 
 if HAS_FLASK:
-    from web_ui import create_web_app, WEB_UI_HTML
+    from services.web_ui import create_web_app, WEB_UI_HTML
 
 
 @pytest.mark.skipif(not HAS_FLASK, reason="Flask not installed")

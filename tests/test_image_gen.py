@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from image_gen import (
+from training.image_gen import (
     IMAGE_GEN_MODELS, TAG_SITE_FORMATS,
     normalize_tags, parse_tag_file, create_tag_dataset,
     list_image_models, get_image_model_by_number, get_image_model_by_name,
@@ -353,7 +353,7 @@ class TestImports:
     """Verify all image_gen exports are importable."""
 
     def test_import_image_gen(self):
-        import image_gen
+        import training.image_gen as image_gen
         assert hasattr(image_gen, 'IMAGE_GEN_MODELS')
         assert hasattr(image_gen, 'TAG_SITE_FORMATS')
         assert hasattr(image_gen, 'normalize_tags')

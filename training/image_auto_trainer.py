@@ -14,7 +14,7 @@ Usage:
     python image_auto_trainer.py
 
     # Programmatic
-    from image_auto_trainer import auto_collect_tags
+    from training.image_auto_trainer import auto_collect_tags
     dataset_path = auto_collect_tags(
         styles=["anime", "landscape", "portrait"],
         model_name="my-art-model",
@@ -36,7 +36,7 @@ from utils.web_collector import (
     _safe_get, _clean_text, search_wikipedia, fetch_wikipedia_article,
     search_duckduckgo, fetch_url_text, WebCollector, save_collected_data,
 )
-from image_gen import (
+from training.image_gen import (
     normalize_tags, create_tag_dataset, TAG_SITE_FORMATS, IMAGE_GEN_MODELS,
     DEFAULT_DATASET_DIR, train_image_model,
 )
@@ -46,7 +46,8 @@ from image_gen import (
 # Constants
 # ---------------------------------------------------------------------------
 
-DANBOORU_API = "https://danbooru.donmai.us"
+# Danbooru API URL is configurable via environment variable (see .env)
+DANBOORU_API = os.environ.get("DANBOORU_API_URL", "https://danbooru.donmai.us")
 
 # Common quality/meta tags used across diffusion model prompts
 QUALITY_TAGS = [

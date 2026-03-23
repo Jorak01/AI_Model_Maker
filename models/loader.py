@@ -17,7 +17,7 @@ from typing import Optional, Tuple, List, Dict
 
 from models.model_factory import MODEL_INFO, PRETRAINED_MODELS, create_model, load_model as factory_load_model
 from models.tokenizer import Tokenizer
-from model_registry import _load_registry, get_model_path, get_tokenizer_path
+from models.registry import _load_registry, get_model_path, get_tokenizer_path
 
 # Back-navigation sentinel
 _BACK_WORDS = frozenset(('back', 'quit', 'exit', 'q', '0'))
@@ -655,6 +655,10 @@ def interactive_load_and_act():
     """Interactive flow: show catalog → pick by number → chat or train.
 
     This is the main entry point for the 'load' command in run.py.
+
+    Returns:
+        (model, tokenizer, device, name) tuple of the loaded model,
+        or None if the user cancelled or no model was loaded.
     """
     config = _load_config()
     device = _get_device(config)
@@ -665,23 +669,23 @@ def interactive_load_and_act():
 
     if not catalog:
         print("  No models available. Train a model first or check your configuration.")
-        return
+        return None
 
     # Get selection
     try:
         print("  Type 'back' or '0' to return to the main menu.")
         selection = input("  Enter model number (or name): ").strip()
         if not selection or _is_back(selection):
-            return
+            return None
     except (KeyboardInterrupt, EOFError):
         print("\n  Cancelled.")
-        return
+        return None
 
     # Check for 'delete <number or name>'
     if selection.lower().startswith('delete '):
         target = selection[7:].strip()
         _interactive_delete_from_catalog(target, catalog)
-        return
+        return None
 
     # Load by number or name
     try:
@@ -691,18 +695,25 @@ def interactive_load_and_act():
         model, tokenizer, entry = load_model_by_name(selection, catalog, config, device)
 
     if model is None or entry is None:
-        return
+        return None
 
-    # Choose action
-    _post_load_menu(model, tokenizer, entry, config, device)
+    # Choose action — returns final model state
+    result = _post_load_menu(model, tokenizer, entry, config, device)
+    return result
 
 
 def _post_load_menu(model: nn.Module, tokenizer: Optional[Tokenizer],
                     entry: Dict, config: dict, device: str):
-    """After loading a model, let the user choose: chat, train, or info."""
+    """After loading a model, let the user choose: chat, train, or info.
+
+    Returns:
+        (model, tokenizer, device, name) tuple so callers can persist the
+        loaded model as the active model, or None if the model was deleted.
+    """
+    name = entry.get('name', 'unknown')
 
     while True:
-        print(f"\n  ── Model Loaded: #{entry.get('number', '?')} {entry.get('name', '?')} ──")
+        print(f"\n  ── Model Loaded: #{entry.get('number', '?')} {name} ──")
         print("  " + "-" * 45)
         print("  1   chat       Chat with this model")
         print("  2   train      Train (or continue training) this model")
@@ -710,7 +721,7 @@ def _post_load_menu(model: nn.Module, tokenizer: Optional[Tokenizer],
         print("  4   delete     Delete this model")
         print("  5   verify     Verify model integrity")
         print("  6   repair     Repair/reinstall broken model")
-        print("  0   back       Return to main menu")
+        print("  0   back       Return to main menu (keeps model active)")
         print()
 
         try:
@@ -731,8 +742,8 @@ def _post_load_menu(model: nn.Module, tokenizer: Optional[Tokenizer],
                 else:
                     print("  Train the model first to build a tokenizer.")
                 continue
-            from chat import interactive_chat
-            interactive_chat(model, tokenizer, config, device)
+            from services.chat import interactive_chat
+            interactive_chat(model, tokenizer, config, device, model_name=name)
 
         elif choice in ('2', 'train'):
             _interactive_train(model, tokenizer, entry, config, device)
@@ -744,7 +755,7 @@ def _post_load_menu(model: nn.Module, tokenizer: Optional[Tokenizer],
             deleted = delete_model_entry(entry)
             if deleted:
                 print("  Returning to main menu...")
-                break  # model is gone, exit post-load menu
+                return None  # model is gone
 
         elif choice in ('5', 'verify'):
             verify_model_entry(entry, device)
@@ -754,6 +765,9 @@ def _post_load_menu(model: nn.Module, tokenizer: Optional[Tokenizer],
 
         else:
             print(f"  Unknown option: '{choice}'")
+
+    # Return the loaded model info so cmd_load() can persist it as active
+    return (model, tokenizer, device, name)
 
 
 def _interactive_train(model: nn.Module, tokenizer: Optional[Tokenizer],
@@ -847,7 +861,7 @@ def _offer_registration(entry: Dict, checkpoint_dir: str, data_path: str):
         if not intent:
             intent = f"Trained from {entry.get('name', 'unknown')}"
 
-        from model_registry import register_model
+        from models.registry import register_model
         register_model(
             name=name,
             intent=intent,
@@ -955,7 +969,7 @@ def delete_model_entry(entry: Dict, confirm: bool = True) -> bool:
 
     if source == "registered":
         # Delete via model_registry
-        from model_registry import delete_model
+        from models.registry import delete_model
         key = entry.get("key", "")
         result = delete_model(key)
         if result:

@@ -1,9 +1,12 @@
 # AI Model Suite - Docker Compose Stack
-# Usage: docker-compose up
-# GPU:   docker-compose --profile gpu up
+# Copy this file to docker-compose.yml:
+#   cp docker-compose.yml.template docker-compose.yml
 #
 # All secrets and ports are read from .env (see .env.template).
 # Copy .env.template to .env and fill in your values before starting.
+#
+# Usage: docker-compose up
+# GPU:   docker-compose --profile gpu up
 
 version: "3.8"
 

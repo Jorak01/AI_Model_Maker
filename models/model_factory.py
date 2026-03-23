@@ -132,10 +132,14 @@ def _cache_is_stale() -> bool:
         return True
 
 
+# HuggingFace API URL is configurable via environment variable (see .env)
+_HUGGINGFACE_API_URL = os.environ.get("HUGGINGFACE_API_URL", "https://huggingface.co/api")
+
+
 def _fetch_hf_model_info(repo_id: str, timeout: int = 8) -> Optional[dict]:
     """Fetch model metadata from the HuggingFace Hub API."""
     try:
-        resp = _requests.get(f"https://huggingface.co/api/models/{repo_id}", timeout=timeout)
+        resp = _requests.get(f"{_HUGGINGFACE_API_URL}/models/{repo_id}", timeout=timeout)
         return resp.json() if resp.status_code == 200 else None
     except Exception:
         return None

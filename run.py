@@ -13,6 +13,12 @@ import signal
 # Global flag for graceful shutdown
 _running = True
 
+# Global active model state — set by 'load' command, used by 'chat'
+_active_model = None
+_active_tokenizer = None
+_active_device = None
+_active_model_name = None
+
 
 def signal_handler(sig, frame):
     global _running
@@ -92,7 +98,7 @@ def print_menu():
 
 def cmd_train():
     """Run training."""
-    from train import main as train_main
+    from training.train import main as train_main
     try:
         train_main()
     except KeyboardInterrupt:
@@ -102,10 +108,63 @@ def cmd_train():
 
 
 def cmd_chat():
-    """Run interactive chat."""
-    from chat import main as chat_main
+    """Run interactive chat — uses active model if loaded, otherwise loads from checkpoint."""
+    global _active_model, _active_tokenizer, _active_device, _active_model_name
+
     try:
-        chat_main()
+        if _active_model is not None and _active_tokenizer is not None:
+            # Use the globally loaded model
+            import yaml
+            try:
+                with open('config.yaml', 'r') as f:
+                    config = yaml.safe_load(f)
+            except Exception:
+                config = {'generation': {'max_length': 100, 'temperature': 0.8,
+                                         'top_k': 50, 'top_p': 0.9, 'repetition_penalty': 1.2},
+                          'device': {'use_cuda': False, 'cuda_device': 0}}
+
+            print(f"\n  Using active model: {_active_model_name}")
+            from services.chat import interactive_chat
+            interactive_chat(_active_model, _active_tokenizer, config,
+                             _active_device or 'cpu', model_name=_active_model_name)
+        else:
+            # No active model — offer to pick one or load from checkpoint
+            print("\n  No model currently loaded.")
+            print("  1  Load from checkpoint (default trained model)")
+            print("  2  Select a model from the catalog")
+            try:
+                choice = input("  [1/2, default=1]: ").strip()
+            except (KeyboardInterrupt, EOFError):
+                return
+
+            if choice == '2':
+                # Use model catalog to select
+                from services.chat import _switch_model
+                import yaml
+                try:
+                    with open('config.yaml', 'r') as f:
+                        config = yaml.safe_load(f)
+                except Exception:
+                    config = {'generation': {'max_length': 100, 'temperature': 0.8,
+                                             'top_k': 50, 'top_p': 0.9, 'repetition_penalty': 1.2},
+                              'device': {'use_cuda': False, 'cuda_device': 0}}
+
+                result = _switch_model(config)
+                if result is not None:
+                    model, tokenizer, device, name = result
+                    _active_model = model
+                    _active_tokenizer = tokenizer
+                    _active_device = device
+                    _active_model_name = name
+                    from services.chat import interactive_chat
+                    interactive_chat(model, tokenizer, config, device, model_name=name)
+                else:
+                    print("  No model selected.")
+            else:
+                # Default: load from checkpoint
+                from services.chat import main as chat_main
+                chat_main()
+
     except KeyboardInterrupt:
         print("\nChat ended.")
     except Exception as e:
@@ -114,7 +173,7 @@ def cmd_chat():
 
 def cmd_api():
     """Start the API server."""
-    from api import main as api_main
+    from services.api import main as api_main
     print("\nStarting API server... Press Ctrl+C to stop and return to menu.")
     try:
         api_main()
@@ -222,7 +281,7 @@ def cmd_status():
 
         # Registered models
         try:
-            from model_registry import _load_registry
+            from models.registry import _load_registry
             registry = _load_registry()
             n_models = len(registry.get('models', {}))
             print(f"  Registered:  {n_models} model(s)")
@@ -248,7 +307,7 @@ def cmd_status():
 
 def cmd_prompt_train():
     """Create a custom model from interactive prompts."""
-    from prompt_trainer import prompt_train_interactive
+    from training.prompt_trainer import prompt_train_interactive
     try:
         prompt_train_interactive()
     except KeyboardInterrupt:
@@ -259,13 +318,13 @@ def cmd_prompt_train():
 
 def cmd_registry():
     """List all registered models."""
-    from model_registry import list_registered_models
+    from models.registry import list_registered_models
     list_registered_models()
 
 
 def cmd_load_model():
     """Chat with a registered model."""
-    from model_registry import list_registered_models, load_registered_model, get_model_info
+    from models.registry import list_registered_models, load_registered_model, get_model_info
     import yaml
 
     list_registered_models()
@@ -303,13 +362,13 @@ def cmd_load_model():
     if model is None:
         return
 
-    from chat import interactive_chat
+    from services.chat import interactive_chat
     interactive_chat(model, tokenizer, config, device)
 
 
 def cmd_external():
     """Chat via external API."""
-    from external_api import interactive_external_chat
+    from services.external_api import interactive_external_chat
     try:
         interactive_external_chat()
     except KeyboardInterrupt:
@@ -320,7 +379,7 @@ def cmd_external():
 
 def cmd_providers():
     """List external API providers."""
-    from external_api import list_providers
+    from services.external_api import list_providers
     list_providers()
 
 
@@ -339,7 +398,7 @@ def cmd_refresh_models():
 
     # Refresh external API provider model lists
     try:
-        from external_api import refresh_provider_models
+        from services.external_api import refresh_provider_models
         refresh_provider_models(force=True)
     except Exception as e:
         print(f"\n  Error refreshing API providers: {e}")
@@ -354,10 +413,20 @@ def cmd_model_families():
 
 
 def cmd_load():
-    """Load any model by number — chat or train."""
-    from model_loader import interactive_load_and_act
+    """Load any model by number — chat or train.  Sets the active model for subsequent 'chat' commands."""
+    global _active_model, _active_tokenizer, _active_device, _active_model_name
+
+    from models.loader import interactive_load_and_act
     try:
-        interactive_load_and_act()
+        result = interactive_load_and_act()
+        if result is not None:
+            model, tokenizer, device, name = result
+            _active_model = model
+            _active_tokenizer = tokenizer
+            _active_device = device
+            _active_model_name = name
+            print(f"\n  ✓ Active model set: {name}")
+            print("  Use 'chat' (option 7) to continue chatting with this model.")
     except KeyboardInterrupt:
         print("\n  Model loader cancelled.")
     except Exception as e:
@@ -366,7 +435,7 @@ def cmd_load():
 
 def cmd_image_gen():
     """Image generation and tag-based training."""
-    from image_gen import interactive_image_gen
+    from training.image_gen import interactive_image_gen
     try:
         interactive_image_gen()
     except KeyboardInterrupt:
@@ -377,7 +446,7 @@ def cmd_image_gen():
 
 def cmd_auto_train():
     """Auto-train a model from public domain data (web, Wikipedia, etc.)."""
-    from auto_trainer import auto_train_interactive
+    from training.auto_trainer import auto_train_interactive
     try:
         auto_train_interactive()
     except KeyboardInterrupt:
@@ -388,7 +457,7 @@ def cmd_auto_train():
 
 def cmd_auto_image():
     """Auto-collect image tags and build datasets from public sources."""
-    from image_auto_trainer import auto_image_train_interactive
+    from training.image_auto_trainer import auto_image_train_interactive
     try:
         auto_image_train_interactive()
     except KeyboardInterrupt:
@@ -507,7 +576,7 @@ def _explore_local():
 
     from models.model_factory import load_model
     from models.tokenizer import Tokenizer
-    from chat import interactive_chat
+    from services.chat import interactive_chat
 
     try:
         model = load_model(model_path, device=device)
@@ -519,7 +588,7 @@ def _explore_local():
 
 def _explore_saved():
     """Explore: browse and chat with registered/named models."""
-    from model_registry import list_registered_models, load_registered_model, get_model_info, _load_registry
+    from models.registry import list_registered_models, load_registered_model, get_model_info, _load_registry
     import yaml
     import torch
 
@@ -573,7 +642,7 @@ def _explore_saved():
     # Handle 'delete <name>'
     if cmd.lower().startswith('delete '):
         name = cmd[7:].strip()
-        from model_registry import delete_model
+        from models.registry import delete_model
         try:
             confirm = input(f"  Delete '{name}'? [y/N]: ").strip().lower()
             if confirm == 'y':
@@ -611,13 +680,13 @@ def _explore_saved():
     if model is None:
         return
 
-    from chat import interactive_chat
+    from services.chat import interactive_chat
     interactive_chat(model, tokenizer, config, device)
 
 
 def _explore_api():
     """Explore: connect to an external API model."""
-    from external_api import (interactive_external_chat, list_providers,
+    from services.external_api import (interactive_external_chat, list_providers,
                               is_provider_configured, find_available_provider, PROVIDERS)
 
     list_providers()
@@ -708,7 +777,7 @@ def cmd_image_tools():
 
 def cmd_rag():
     """RAG — ingest documents, context-aware chat with citations."""
-    from rag import interactive_rag
+    from services.rag import interactive_rag
     try:
         interactive_rag()
     except KeyboardInterrupt:
@@ -719,7 +788,7 @@ def cmd_rag():
 
 def cmd_agent():
     """Agent framework — tool use, memory, multi-step reasoning."""
-    from agent import interactive_agent
+    from services.agent import interactive_agent
     try:
         interactive_agent()
     except KeyboardInterrupt:
@@ -777,7 +846,7 @@ def cmd_config_mgr():
 
 def cmd_compat_api():
     """Start OpenAI-compatible API server."""
-    from api_compat import create_app
+    from services.api_compat import create_app
     print("\n  Starting OpenAI-compatible API on port 8001...")
     print("  Endpoints: /v1/chat/completions, /v1/images/generations, /v1/models")
     print("  Use as base_url: http://localhost:8001/v1")
@@ -793,7 +862,7 @@ def cmd_compat_api():
 
 def cmd_web_ui():
     """Launch browser-based web interface."""
-    from web_ui import interactive_web_ui
+    from services.web_ui import interactive_web_ui
     try:
         interactive_web_ui()
     except KeyboardInterrupt:
@@ -804,7 +873,7 @@ def cmd_web_ui():
 
 def cmd_tutorial():
     """Run the interactive tutorial."""
-    from tutorial import run_tutorial
+    from docs.tutorial import run_tutorial
     try:
         run_tutorial()
     except KeyboardInterrupt:

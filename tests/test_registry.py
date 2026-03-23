@@ -8,7 +8,7 @@ import tempfile
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import model_registry
+import models.registry as model_registry
 
 
 @pytest.fixture(autouse=True)
@@ -155,7 +155,7 @@ class TestRegistryOperations:
 
     def test_register_with_data_sources(self, fake_checkpoint, tmp_path):
         # Create a fake data file
-        data_file = str(tmp_path / "train.json")
+        data_file = str(tmp_path / "training.train.json")
         with open(data_file, 'w') as f:
             json.dump([{"prompt": "hi", "response": "hello"}], f)
 
@@ -168,7 +168,7 @@ class TestRegistryOperations:
             data_sources=[data_file]
         )
         # Check data was copied
-        assert os.path.exists(os.path.join(path, "data", "train.json"))
+        assert os.path.exists(os.path.join(path, "data", "training.train.json"))
 
     def test_invalid_name(self, fake_checkpoint):
         with pytest.raises(ValueError):

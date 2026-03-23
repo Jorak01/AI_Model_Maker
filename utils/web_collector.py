@@ -33,9 +33,10 @@ DEFAULT_HEADERS = {
 CACHE_DIR = os.path.join("data", ".web_cache")
 
 # Public domain / open-access APIs that do NOT require keys
-WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
-DUCKDUCKGO_HTML = "https://html.duckduckgo.com/html/"
-STACKEXCHANGE_API = "https://api.stackexchange.com/2.3"
+# URLs are configurable via environment variables (see .env)
+WIKIPEDIA_API = os.environ.get("WIKIPEDIA_API_URL", "https://en.wikipedia.org/w/api.php")
+DUCKDUCKGO_HTML = os.environ.get("DUCKDUCKGO_URL", "https://html.duckduckgo.com/html/")
+STACKEXCHANGE_API = os.environ.get("STACKEXCHANGE_API_URL", "https://api.stackexchange.com/2.3")
 
 
 # ---------------------------------------------------------------------------

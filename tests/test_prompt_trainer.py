@@ -7,7 +7,7 @@ import tempfile
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from prompt_trainer import save_training_data, _show_pairs, collect_prompts
+from training.prompt_trainer import save_training_data, _show_pairs, collect_prompts
 
 
 class TestSaveTrainingData:
@@ -16,7 +16,7 @@ class TestSaveTrainingData:
             {"prompt": "Hello", "response": "Hi there"},
             {"prompt": "How are you", "response": "Good"},
         ]
-        path = str(tmp_path / "train.json")
+        path = str(tmp_path / "training.train.json")
         result = save_training_data(pairs, path, merge_existing=False)
         assert os.path.exists(result)
         with open(result, 'r') as f:
@@ -26,7 +26,7 @@ class TestSaveTrainingData:
 
     def test_merge_with_existing(self, tmp_path):
         # Create existing file
-        path = str(tmp_path / "train.json")
+        path = str(tmp_path / "training.train.json")
         existing = [{"prompt": "Existing", "response": "Data"}]
         with open(path, 'w') as f:
             json.dump(existing, f)
@@ -41,7 +41,7 @@ class TestSaveTrainingData:
         assert data[1]["prompt"] == "New"
 
     def test_no_merge(self, tmp_path):
-        path = str(tmp_path / "train.json")
+        path = str(tmp_path / "training.train.json")
         existing = [{"prompt": "Old", "response": "Data"}]
         with open(path, 'w') as f:
             json.dump(existing, f)
@@ -55,7 +55,7 @@ class TestSaveTrainingData:
         assert data[0]["prompt"] == "New"
 
     def test_creates_directories(self, tmp_path):
-        path = str(tmp_path / "sub" / "dir" / "train.json")
+        path = str(tmp_path / "sub" / "dir" / "training.train.json")
         pairs = [{"prompt": "Hi", "response": "Hello"}]
         save_training_data(pairs, path, merge_existing=False)
         assert os.path.exists(path)

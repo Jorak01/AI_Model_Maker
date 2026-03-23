@@ -295,7 +295,7 @@ def create_web_app():
         # Fallback to external API
         if not response_text:
             try:
-                from external_api import chat_with_provider, find_available_provider
+                from services.external_api import chat_with_provider, find_available_provider
                 provider = find_available_provider()
                 if provider:
                     response_text = chat_with_provider(provider, user_msg)
@@ -315,7 +315,7 @@ def create_web_app():
 
         model_count = 0
         try:
-            from model_registry import _load_registry
+            from models.registry import _load_registry
             registry = _load_registry()
             model_count = len(registry.get('models', {}))
         except Exception:
@@ -340,7 +340,7 @@ def create_web_app():
     def api_models():
         models = []
         try:
-            from model_registry import _load_registry
+            from models.registry import _load_registry
             registry = _load_registry()
             for name, info in registry.get('models', {}).items():
                 models.append({

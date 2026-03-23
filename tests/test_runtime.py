@@ -64,25 +64,25 @@ class TestModuleImports:
         assert hasattr(utils, 'Trainer')
 
     def test_import_api(self):
-        import api
+        import services.api as api
         assert hasattr(api, 'app')
         assert hasattr(api, 'health')
         assert hasattr(api, 'chat')
 
     def test_import_chat(self):
-        import chat
+        import services.chat as chat
         assert hasattr(chat, 'generate_response')
         assert hasattr(chat, 'load_model_and_tokenizer')
         assert hasattr(chat, 'interactive_chat')
 
     def test_import_train(self):
-        import train
+        import training.train as train
         assert hasattr(train, 'main')
         assert hasattr(train, 'load_config')
         assert hasattr(train, 'get_device')
 
     def test_import_model_registry(self):
-        import model_registry
+        import models.registry as model_registry
         assert hasattr(model_registry, 'register_model')
         assert hasattr(model_registry, 'list_registered_models')
         assert hasattr(model_registry, 'load_registered_model')
@@ -90,13 +90,13 @@ class TestModuleImports:
         assert hasattr(model_registry, 'get_model_info')
 
     def test_import_prompt_trainer(self):
-        import prompt_trainer
+        import training.prompt_trainer as prompt_trainer
         assert hasattr(prompt_trainer, 'collect_prompts')
         assert hasattr(prompt_trainer, 'save_training_data')
         assert hasattr(prompt_trainer, 'prompt_train_interactive')
 
     def test_import_external_api(self):
-        import external_api
+        import services.external_api as external_api
         assert hasattr(external_api, 'ExternalAPIClient')
         assert hasattr(external_api, 'PROVIDERS')
         assert hasattr(external_api, 'api_call')
@@ -104,7 +104,7 @@ class TestModuleImports:
         assert hasattr(external_api, 'find_available_provider')
 
     def test_import_model_loader(self):
-        import model_loader
+        import models.loader as model_loader
         assert hasattr(model_loader, 'build_model_catalog')
         assert hasattr(model_loader, 'display_catalog')
         assert hasattr(model_loader, 'load_model_by_number')
@@ -115,7 +115,7 @@ class TestModuleImports:
         assert hasattr(model_loader, 'repair_model_entry')
 
     def test_import_image_gen(self):
-        import image_gen
+        import training.image_gen as image_gen
         assert hasattr(image_gen, 'IMAGE_GEN_MODELS')
         assert hasattr(image_gen, 'TAG_SITE_FORMATS')
         assert hasattr(image_gen, 'normalize_tags')
@@ -524,7 +524,7 @@ class TestAPIRuntime:
 
     @pytest.fixture
     def client(self):
-        from api import app
+        from services.api import app
         app.config['TESTING'] = True
         with app.test_client() as c:
             yield c
@@ -569,7 +569,7 @@ class TestRegistryRuntime:
 
     @pytest.fixture(autouse=True)
     def temp_registry(self, monkeypatch, tmp_path):
-        import model_registry
+        import models.registry as model_registry
         reg_dir = str(tmp_path / "trained_models")
         reg_file = os.path.join(reg_dir, "registry.json")
         monkeypatch.setattr(model_registry, "REGISTRY_DIR", reg_dir)
@@ -587,7 +587,7 @@ class TestRegistryRuntime:
         return d
 
     def test_register_get_delete_cycle(self, fake_ckpt):
-        import model_registry
+        import models.registry as model_registry
         model_registry.register_model("test-bot", "testing", "custom",
                                        "scratch", fake_ckpt)
         info = model_registry.get_model_info("test-bot")
@@ -598,7 +598,7 @@ class TestRegistryRuntime:
         assert model_registry.get_model_info("test-bot") is None
 
     def test_multiple_models(self, fake_ckpt):
-        import model_registry
+        import models.registry as model_registry
         model_registry.register_model("bot-a", "intent a", "custom", "scratch", fake_ckpt)
         model_registry.register_model("bot-b", "intent b", "gpt2", "finetune", fake_ckpt)
         reg = model_registry._load_registry()
@@ -612,7 +612,7 @@ class TestPromptTrainerRuntime:
     """Verify prompt trainer data handling."""
 
     def test_save_and_reload(self, tmp_path):
-        from prompt_trainer import save_training_data
+        from training.prompt_trainer import save_training_data
         pairs = [
             {"prompt": "hello", "response": "hi"},
             {"prompt": "how are you", "response": "fine"},
@@ -626,8 +626,8 @@ class TestPromptTrainerRuntime:
         assert loaded[0]["prompt"] == "hello"
 
     def test_merge_append(self, tmp_path):
-        from prompt_trainer import save_training_data
-        path = str(tmp_path / "train.json")
+        from training.prompt_trainer import save_training_data
+        path = str(tmp_path / "training.train.json")
         save_training_data([{"prompt": "a", "response": "b"}], path, merge_existing=False)
         save_training_data([{"prompt": "c", "response": "d"}], path, merge_existing=True)
 
@@ -644,7 +644,7 @@ class TestExternalAPIRuntime:
 
     def test_unconfigured_providers_return_false(self):
         """Without env vars or config keys, key-based providers should be unconfigured."""
-        from external_api import is_provider_configured
+        from services.external_api import is_provider_configured
         # These should not be configured in the test environment (unless user set keys)
         if not os.environ.get("OPENAI_API_KEY"):
             assert is_provider_configured("openai") is False
@@ -653,13 +653,13 @@ class TestExternalAPIRuntime:
 
     def test_find_available_returns_none_when_all_unconfigured(self):
         from unittest.mock import patch
-        from external_api import find_available_provider
-        with patch('external_api.is_provider_configured', return_value=False):
+        from services.external_api import find_available_provider
+        with patch('services.external_api.is_provider_configured', return_value=False):
             result = find_available_provider(["openai", "anthropic"])
             assert result is None
 
     def test_client_handles_connection_error(self):
-        from external_api import ExternalAPIClient
+        from services.external_api import ExternalAPIClient
         client = ExternalAPIClient("openai", model="gpt-4", api_key="fake",
                                     base_url="http://localhost:1")
         response = client.chat("test")
@@ -876,9 +876,10 @@ class TestFileStructure:
     """Verify project file structure is correct."""
 
     EXPECTED_FILES = [
-        'run.py', 'train.py', 'chat.py', 'api.py',
-        'model_registry.py', 'prompt_trainer.py', 'external_api.py',
-        'model_loader.py', 'image_gen.py',
+        'run.py',
+        'services/chat.py', 'services/api.py', 'services/external_api.py',
+        'training/train.py', 'training/prompt_trainer.py', 'training/image_gen.py',
+        'models/registry.py', 'models/loader.py',
         'config.yaml', 'requirements.txt', 'README.md',
         'models/__init__.py', 'models/model.py', 'models/tokenizer.py',
         'models/model_factory.py',

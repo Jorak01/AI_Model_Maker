@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from auto_trainer import auto_train, auto_collect, load_config
+from training.auto_trainer import auto_train, auto_collect, load_config
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ class TestLoadConfig:
 # ---------------------------------------------------------------------------
 
 class TestAutoCollect:
-    @patch("auto_trainer.WebCollector")
+    @patch("training.auto_trainer.WebCollector")
     def test_collect_saves_data(self, MockCollector):
         """Test that auto_collect creates a data file."""
         # Mock the collector to return fake pairs
@@ -51,7 +51,7 @@ class TestAutoCollect:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Patch the data directory
-            with patch("auto_trainer.os.path.join", side_effect=os.path.join):
+            with patch("training.auto_trainer.os.path.join", side_effect=os.path.join):
                 result = auto_collect(
                     topics=["Python programming"],
                     output_name="test_collect",
@@ -61,7 +61,7 @@ class TestAutoCollect:
                 # Should return a path (may be empty string if data dir issues)
                 assert isinstance(result, str)
 
-    @patch("auto_trainer.WebCollector")
+    @patch("training.auto_trainer.WebCollector")
     def test_collect_no_data(self, MockCollector):
         """Test that auto_collect handles empty results gracefully."""
         mock_instance = MockCollector.return_value
@@ -74,7 +74,7 @@ class TestAutoCollect:
         )
         assert result == ""
 
-    @patch("auto_trainer.WebCollector")
+    @patch("training.auto_trainer.WebCollector")
     def test_collect_multi_topic(self, MockCollector):
         """Test multi-topic collection."""
         mock_instance = MockCollector.return_value
@@ -96,13 +96,13 @@ class TestAutoCollect:
 # ---------------------------------------------------------------------------
 
 class TestAutoTrain:
-    @patch("auto_trainer.register_model")
-    @patch("auto_trainer.Trainer")
-    @patch("auto_trainer.create_model")
-    @patch("auto_trainer.create_data_loaders")
-    @patch("auto_trainer.load_and_prepare_data")
-    @patch("auto_trainer.save_collected_data")
-    @patch("auto_trainer.WebCollector")
+    @patch("training.auto_trainer.register_model")
+    @patch("training.auto_trainer.Trainer")
+    @patch("training.auto_trainer.create_model")
+    @patch("training.auto_trainer.create_data_loaders")
+    @patch("training.auto_trainer.load_and_prepare_data")
+    @patch("training.auto_trainer.save_collected_data")
+    @patch("training.auto_trainer.WebCollector")
     def test_full_pipeline_mocked(self, MockCollector, mock_save, mock_prep,
                                    mock_loaders, mock_create, MockTrainer,
                                    mock_register):
@@ -161,7 +161,7 @@ class TestAutoTrain:
         mock_create.assert_called_once()
         mock_register.assert_called_once()
 
-    @patch("auto_trainer.WebCollector")
+    @patch("training.auto_trainer.WebCollector")
     def test_no_data_collected(self, MockCollector):
         """Test that auto_train exits gracefully when no data is collected."""
         mock_instance = MockCollector.return_value

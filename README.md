@@ -1,509 +1,539 @@
-# Conversational AI Model
+# AI Model Suite
 
-A transformer-based conversational AI with multiple baseline models, training pipelines, model registry, external API integration, and REST API.
+A full-featured AI toolkit: custom transformer training, external API integration (OpenAI, Anthropic, Google, DeepSeek, Ollama), automated data collection, RAG, agent framework, image generation, evaluation, and more — all from a single interactive runtime.
 
 ---
 
 ## Table of Contents
 
-- [Conversational AI Model](#conversational-ai-model)
-  - [Table of Contents](#table-of-contents)
-  - [Quick Start](#quick-start)
-  - [How to Use](#how-to-use)
-    - [Interactive Runtime](#interactive-runtime)
-    - [Training a Model](#training-a-model)
-      - [Step 1: Prepare Your Data](#step-1-prepare-your-data)
-      - [Step 2: Configure Training](#step-2-configure-training)
-      - [Step 3: Train](#step-3-train)
-      - [Step 4: Chat with Your Model](#step-4-chat-with-your-model)
-    - [Training Pipelines Explained](#training-pipelines-explained)
-    - [Creating Custom Models with Prompt Training](#creating-custom-models-with-prompt-training)
-    - [Chatting with Your Model](#chatting-with-your-model)
-    - [Using Saved \& Registered Models](#using-saved--registered-models)
-      - [List all saved models:](#list-all-saved-models)
-      - [Load and chat with a saved model:](#load-and-chat-with-a-saved-model)
-      - [Where models are stored:](#where-models-are-stored)
-    - [Exploring All Models (Local, Saved, API)](#exploring-all-models-local-saved-api)
-    - [External API Calls](#external-api-calls)
-      - [Setup](#setup)
-      - [Interactive Chat](#interactive-chat)
-      - [Programmatic API Calls (Python)](#programmatic-api-calls-python)
-      - [Check Provider Status](#check-provider-status)
-    - [REST API Server](#rest-api-server)
-      - [Endpoints](#endpoints)
-      - [Examples](#examples)
-  - [Baseline Models](#baseline-models)
-  - [Configuration Reference](#configuration-reference)
-  - [Project Structure](#project-structure)
-  - [Data Format](#data-format)
-  - [Running Tests](#running-tests)
+- [Quick Start](#quick-start)
+- [Setup & Configuration](#setup--configuration)
+- [Interactive Runtime](#interactive-runtime)
+- [Training](#training)
+  - [Manual Training](#manual-training)
+  - [Prompt Training](#prompt-training)
+  - [Auto Training](#auto-training)
+  - [Pipelines Explained](#pipelines-explained)
+  - [Curriculum Learning](#curriculum-learning)
+- [Chat & Generation](#chat--generation)
+  - [Local Chat](#local-chat)
+  - [External API Chat](#external-api-chat)
+  - [Agent (Tool Use)](#agent-tool-use)
+  - [RAG (Document Chat)](#rag-document-chat)
+  - [Image Generation](#image-generation)
+- [Model Management](#model-management)
+  - [Model Registry](#model-registry)
+  - [Model Explorer](#model-explorer)
+  - [Model Packager](#model-packager)
+- [APIs & Servers](#apis--servers)
+  - [REST API](#rest-api)
+  - [OpenAI-Compatible API](#openai-compatible-api)
+  - [Web UI](#web-ui)
+- [Data & Evaluation](#data--evaluation)
+  - [Dataset Manager](#dataset-manager)
+  - [Evaluation Suite](#evaluation-suite)
+  - [Training Dashboard](#training-dashboard)
+- [Image Tools](#image-tools)
+- [Plugins](#plugins)
+- [Configuration Reference](#configuration-reference)
+- [Docker](#docker)
+- [Project Structure](#project-structure)
+- [Running Tests](#running-tests)
 
 ---
 
 ## Quick Start
 
 ```bash
+# 1. Install dependencies
 pip install -r requirements.txt
-python run.py                # Launch interactive runtime menu
+
+# 2. Set up configuration (copy template & add your API keys)
+copy config\config.yaml.template config.yaml        # Windows
+copy config\.env.template .env                       # Windows
+
+# 3. Launch
+python run.py
 ```
 
 ---
 
-## How to Use
+## Setup & Configuration
 
-### Interactive Runtime
+Configuration templates live in `config/`. Copy them to the project root and fill in your secrets:
 
-Run `python run.py` to launch the interactive menu. All features are accessible from here:
+| Template | Copy To | Purpose |
+|----------|---------|---------|
+| `config/config.yaml.template` | `config.yaml` | Model, training, API, and generation settings |
+| `config/.env.template` | `.env` | API keys and environment variables |
+| `config/docker-compose.yml.template` | `docker-compose.yml` | Docker Compose orchestration |
+| `config/pytest.ini.template` | `pytest.ini` | Test configuration |
 
-```
-  Commands:
-  --------------------------------------------------
-  1   train          Train the model
-  2   chat           Interactive chat (local model)
-  3   api            Start REST API server
-  4   models         List available base models
-  5   pipelines      List training pipelines
-  6   config         Show current configuration
-  7   status         Check model/checkpoint status
-  8   test           Run all tests
-  --------------------------------------------------
-  9   prompt-train   Create model from prompts
-  10  registry       List registered models
-  11  load-model     Chat with a registered model
-  12  external       Chat via external API
-  13  providers      List external API providers
-  14  explore        Browse all models (local, saved, API)
-  --------------------------------------------------
-  0   stop/quit      Exit the runtime
-```
-
-You can also run any command directly from the command line:
+**API keys** can be set in `.env`, `config.yaml`, or as environment variables:
 
 ```bash
-python run.py train          # Start training immediately
-python run.py chat           # Open chat with trained model
-python run.py api            # Start the REST API server
-python run.py explore        # Open the model explorer
-python run.py prompt-train   # Create a custom model interactively
-python run.py external       # Chat with an external API model
-python run.py registry       # List all saved/registered models
-python run.py status         # Check what's trained and available
+# Environment variables (any OS)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=AI...
+DEEPSEEK_API_KEY=sk-...
+```
+
+The `.gitignore` ensures `config.yaml`, `.env`, `docker-compose.yml`, and `pytest.ini` are never committed.
+
+---
+
+## Interactive Runtime
+
+Run `python run.py` to launch the interactive menu with **34 commands** across 8 categories:
+
+```
+  ─── Training & Data ─────────────────────────
+   1  train            Train the model
+   2  prompt-train     Create model from prompts
+   3  auto-train       Auto-train from public data
+   4  auto-image       Auto-collect image tags
+   5  dataset-mgr      Dataset management hub
+   6  curriculum       Curriculum learning
+
+  ─── Chat & Generation ────────────────────────
+   7  chat             Interactive chat (local)
+   8  image-gen        Image generation & training
+   9  external         Chat via external API
+  10  rag              RAG document chat
+  11  agent            Agent with tool use
+
+  ─── Model Management ────────────────────────
+  12  load             Load any model by number
+  13  explore          Browse all models
+  14  registry         List registered models
+  15  load-model       Chat with registered model
+  16  packager         Export/import model archives
+
+  ─── Evaluation & Monitoring ─────────────────
+  17  eval             Evaluation suite (BLEU, etc)
+  18  dashboard        Training dashboard (web)
+
+  ─── Image Tools ────────────────────────────
+  19  tag-mgr          Tag frequency & ontology
+  20  image-tools      Upscale, variations, color
+
+  ─── API & Servers ──────────────────────────
+  21  api              Start REST API server
+  22  compat-api       OpenAI-compatible API
+  23  web-ui           Browser-based interface
+  24  providers        List API providers
+
+  ─── Infrastructure ─────────────────────────
+  25  plugins          Plugin manager
+  26  config-mgr       Config profiles & validation
+
+  ─── Info & System ───────────────────────────
+  27  models           Available base models
+  28  pipelines        Training pipelines
+  29  model-families   Models grouped by family
+  30  config           Show configuration
+  31  status           Model/checkpoint status
+  32  refresh-models   Update model lists
+  33  tutorial         Interactive tutorial
+  34  test             Run all tests
+
+   0  stop / quit      Exit
+```
+
+Any command can be run directly from the command line:
+
+```bash
+python run.py train          # Start training
+python run.py chat           # Chat with trained model
+python run.py auto-train     # Auto-train from public data
+python run.py external       # Chat via external API
+python run.py agent          # Launch tool-use agent
+python run.py rag            # RAG document chat
+python run.py api            # Start REST API server
+python run.py explore        # Browse all models
+python run.py eval           # Run evaluation suite
+python run.py dashboard      # Launch training dashboard
 ```
 
 ---
 
-### Training a Model
+## Training
 
-Training teaches the model to generate conversational responses from your data.
+### Manual Training
 
-#### Step 1: Prepare Your Data
-
-Training data is a JSON file of prompt/response pairs in `data/train.json`:
+Prepare a JSON dataset of prompt/response pairs in `data/train.json`:
 
 ```json
 [
   {"prompt": "Hello!", "response": "Hi! How can I help you today?"},
-  {"prompt": "What is AI?", "response": "AI is the simulation of human intelligence by machines."},
-  {"prompt": "Tell me a joke", "response": "Why do programmers prefer dark mode? Because light attracts bugs!"}
+  {"prompt": "What is AI?", "response": "AI is the simulation of human intelligence by machines."}
 ]
 ```
 
-#### Step 2: Configure Training
-
-Edit `config.yaml` to set your model and training options:
-
-```yaml
-model:
-  base_model: "custom"       # Which model to use (see Baseline Models)
-  vocab_size: 10000           # Vocabulary size (custom model only)
-  embedding_dim: 256          # Embedding dimensions (custom model only)
-  num_layers: 4               # Transformer layers (custom model only)
-  max_seq_length: 128         # Max input length
-
-training:
-  pipeline: "scratch"         # How to train (see Pipelines)
-  batch_size: 32              # Samples per batch
-  learning_rate: 0.0001       # Learning rate
-  num_epochs: 10              # Training iterations over full dataset
-```
-
-#### Step 3: Train
+Configure `config.yaml`, then train:
 
 ```bash
 python run.py train
 ```
 
-This will:
-1. Build a tokenizer from your training data
-2. Create the model based on your config
-3. Train for the configured number of epochs
-4. Save checkpoints to `checkpoints/` after each epoch
-5. Save the best model as `checkpoints/best_model.pt`
+This builds a tokenizer, creates the model, trains for the configured epochs, and saves checkpoints to `checkpoints/`. The best model is saved as `checkpoints/best_model.pt`.
 
-You'll see training loss and validation loss printed each epoch. Lower loss = better model.
+### Prompt Training
 
-#### Step 4: Chat with Your Model
-
-```bash
-python run.py chat
-```
-
-The chat command automatically loads the best checkpoint and tokenizer.
-
----
-
-### Training Pipelines Explained
-
-Pipelines control **how** the model learns. Choose the right one based on your needs:
-
-| Pipeline | What It Does | When to Use | Config |
-|----------|-------------|-------------|--------|
-| **`scratch`** | Trains a brand-new model from random weights | When you want full control with your own architecture | `base_model: "custom"` |
-| **`finetune`** | Takes a pretrained model and trains ALL layers on your data | When you want a smart starting point and have enough data (100+ pairs) | `base_model: "gpt2"` (or any pretrained) |
-| **`freeze`** | Takes a pretrained model but only trains the top layers; base layers stay frozen | When you have limited data (10-50 pairs) and want to avoid overfitting | `base_model: "gpt2"` + `freeze_layers: 4` |
-
-**How `scratch` works:**
-- Creates a custom transformer from scratch with random weights
-- All parameters are trainable — the model learns everything from your data
-- Needs more data and epochs to produce good results
-- Best for specialized domains where pretrained knowledge would be irrelevant
-
-**How `finetune` works:**
-- Downloads a pretrained model (e.g., GPT-2 with 124M parameters already trained on internet text)
-- Unlocks all layers so every weight gets updated on your data
-- The model starts with general language knowledge and adapts it to your style
-- Faster convergence than scratch; 3-5 epochs is often enough
-
-**How `freeze` works:**
-- Downloads a pretrained model just like `finetune`
-- Freezes the bottom N layers (set by `freeze_layers` in config)
-- Only the top layers and output head are updated during training
-- Preserves the pretrained knowledge while adapting the output
-- Ideal when you have very few training examples
-
-**Example configurations:**
-
-```yaml
-# Train from scratch (custom architecture)
-model:
-  base_model: "custom"
-training:
-  pipeline: "scratch"
-  num_epochs: 20
-
-# Fine-tune GPT-2 (all layers)
-model:
-  base_model: "gpt2"
-training:
-  pipeline: "finetune"
-  num_epochs: 5
-  learning_rate: 0.00005
-
-# Freeze-tune DistilGPT-2 (fast, small data)
-model:
-  base_model: "distilgpt2"
-training:
-  pipeline: "freeze"
-  freeze_layers: 4
-  num_epochs: 3
-```
-
----
-
-### Creating Custom Models with Prompt Training
-
-The **Prompt Trainer** lets you create a named model interactively without editing files:
+Create a named model interactively — no file editing needed:
 
 ```bash
 python run.py prompt-train
 ```
 
-**What happens:**
+1. Name your model (e.g., `trivia-bot`)
+2. Describe its purpose
+3. Enter prompt/response pairs one by one
+4. Choose a base model (custom, GPT-2, DistilGPT-2)
+5. Train — the model is automatically registered
 
-1. **Name your model** — e.g., "customer-support-bot"
-2. **Describe its intent** — e.g., "Answer customer support questions"
-3. **Enter prompt/response pairs** — type them in one by one
-4. **Choose a base model** — custom (scratch), GPT-2, or DistilGPT-2
-5. **Train** — the system trains the model automatically
-6. **Register** — the model is saved to the registry with its name
+### Auto Training
 
-**Interactive example:**
+**The auto-trainer searches the internet for public domain data, builds a dataset, and trains a model — fully automated:**
 
-```
-  What should this model be called?
-  Name: trivia-bot
-
-  What is the main intent/purpose of this model?
-  Intent: Answer trivia questions about science
-
-  [1] Enter a PROMPT (or 'done'):
-  > What is the speed of light?
-  Enter the RESPONSE:
-  > The speed of light in a vacuum is approximately 299,792,458 meters per second.
-
-  [2] Enter a PROMPT (or 'done'):
-  > What is photosynthesis?
-  Enter the RESPONSE:
-  > Photosynthesis is the process by which plants convert sunlight into energy.
-
-  [3] Enter a PROMPT (or 'done'):
-  > done
-
-  Choose base model:
-  1. custom (train from scratch)
-  2. gpt2 (fine-tune GPT-2)
-  3. distilgpt2 (fine-tune DistilGPT-2)
-  [1/2/3, default=1]: 1
-
-  Training epochs? (default=10)
-  Epochs: 5
-
-  Building tokenizer...
-  Creating data loaders...
-  Starting training...
-  Epoch 1/5  Loss: 2.4531  Val Loss: 2.3890
-  ...
-  Model 'trivia-bot' trained and registered!
+```bash
+python run.py auto-train
 ```
 
-Your model is now saved and accessible anytime via `load-model` or `explore`.
+Interactive flow:
+1. Name the model and enter topics (e.g., `quantum physics, relativity`)
+2. Choose data sources: Wikipedia, web search, StackExchange
+3. Optionally add specific URLs
+4. Choose base model and training epochs
+5. The system collects data, builds a dataset, trains, and registers the model
+
+Programmatic usage:
+
+```python
+from training.auto_trainer import auto_train
+
+auto_train(
+    topics=["quantum computing", "neural networks"],
+    model_name="science-bot",
+    sources=["wikipedia", "web"],
+    max_pairs_per_topic=150,
+    base_model="custom",
+    epochs=10,
+)
+```
+
+Or collect data without training:
+
+```python
+from training.auto_trainer import auto_collect
+
+path = auto_collect(
+    topics=["machine learning", "deep learning"],
+    output_name="ml-dataset",
+)
+```
+
+### Pipelines Explained
+
+| Pipeline | What It Does | When to Use |
+|----------|-------------|-------------|
+| **`scratch`** | Train from random weights | Full control, specialized domains |
+| **`finetune`** | Train ALL layers of a pretrained model | Good data (100+ pairs), best quality |
+| **`freeze`** | Only train top layers of a pretrained model | Limited data (10-50 pairs), avoid overfitting |
+
+```yaml
+# config.yaml examples
+model:
+  base_model: "custom"      # or "gpt2", "distilgpt2", "gpt2-medium", "pythia-160m"
+training:
+  pipeline: "scratch"        # or "finetune", "freeze"
+  freeze_layers: 4           # for freeze pipeline only
+```
+
+### Curriculum Learning
+
+Progressive training that starts with easy examples and increases difficulty:
+
+```bash
+python run.py curriculum
+```
+
+Features:
+- Automatic difficulty estimation based on text complexity
+- Progressive data introduction (easy → hard)
+- Domain detection and mixing ratios
+- Schedule visualization
 
 ---
 
-### Chatting with Your Model
+## Chat & Generation
 
-There are three ways to chat:
+### Local Chat
 
-**1. Chat with the default trained model** (from `checkpoints/`):
+Chat with your trained model:
+
 ```bash
-python run.py chat
+python run.py chat           # Default trained model from checkpoints/
+python run.py load-model     # Choose a registered model by name
 ```
 
-**2. Chat with a registered/saved model** (from the model registry):
+### External API Chat
+
+Chat with OpenAI, Anthropic, Google, DeepSeek, Ollama, or any OpenAI-compatible endpoint:
+
 ```bash
-python run.py load-model
-# Then type the model name when prompted, e.g. "trivia-bot"
+python run.py external       # Interactive provider/model selection
+python run.py providers      # Check which providers are configured
+python run.py refresh-models # Update model lists from provider APIs
 ```
 
-**3. Chat with an external API model** (OpenAI, Anthropic, Ollama):
-```bash
-python run.py external
+Supported providers and their latest models:
+
+| Provider | Models | Auth |
+|----------|--------|------|
+| **OpenAI** | gpt-4o, gpt-4.1, o3, o4-mini, gpt-4.5-preview | `OPENAI_API_KEY` |
+| **Anthropic** | claude-sonnet-4, claude-3.7-sonnet, claude-3.5-sonnet | `ANTHROPIC_API_KEY` |
+| **Google** | gemini-2.5-pro, gemini-2.5-flash, gemini-2.0-flash | `GOOGLE_API_KEY` |
+| **DeepSeek** | deepseek-chat, deepseek-reasoner | `DEEPSEEK_API_KEY` |
+| **Ollama** | llama3.3, mistral, phi4, qwen3, deepseek-r1 (local) | No key needed |
+| **Custom** | Any OpenAI-compatible endpoint | `CUSTOM_API_KEY` |
+
+Programmatic usage:
+
+```python
+from services.external_api import api_call, ExternalAPIClient
+
+# Single call
+response = api_call("openai", "gpt-4o", "What is machine learning?")
+
+# Multi-turn conversation
+client = ExternalAPIClient("google", model="gemini-2.5-flash")
+r1 = client.chat("What is Python?")
+r2 = client.chat("Can you give me an example?")  # Remembers context
+client.clear_history()
 ```
+
+### Agent (Tool Use)
+
+An AI agent that can use tools, search the web, read files, do math, and remember facts:
+
+```bash
+python run.py agent
+```
+
+Built-in tools:
+- **Calculator** — evaluate math expressions
+- **Web search** — search DuckDuckGo
+- **Wikipedia** — look up any topic
+- **File reader** — read file contents
+- **File listing** — list directory contents
+- **Current time** — get date/time
+
+The agent automatically detects when a tool is needed. It also has short-term (conversation) and long-term (persistent) memory:
+
+```
+You: What is 245 * 18?
+Agent: [Used calculator] 4410
+
+You: Search for latest news on quantum computing
+Agent: [Used web_search] ...
+
+You: Remember that my project deadline is March 30
+Agent: Remembered: my project deadline is March 30
+```
+
+### RAG (Document Chat)
+
+Retrieval-Augmented Generation — ingest documents, then chat with context and citations:
+
+```bash
+python run.py rag
+```
+
+Features:
+- Ingest text, markdown, Python, JSON, CSV, and PDF files
+- TF-IDF based vector search (no external dependencies)
+- Automatic context retrieval and prompt augmentation
+- Source citations in responses
+
+```python
+from services.rag import RAGPipeline
+
+rag = RAGPipeline()
+rag.ingest_file("docs/manual.md")
+rag.ingest_directory("src/", extensions=[".py", ".md"])
+
+response, sources = rag.chat_with_context("How does the tokenizer work?")
+```
+
+### Image Generation
+
+Tag-based image generation and training with Stable Diffusion models:
+
+```bash
+python run.py image-gen
+```
+
+Features:
+- Generate images from text prompts
+- Tag normalization (Danbooru, e621, Derpibooru formats)
+- Tag-based dataset creation
+- Fine-tune image models on custom tag datasets
 
 ---
 
-### Using Saved & Registered Models
+## Model Management
 
-Every model you create with `prompt-train` is automatically registered. You can also manually register models.
+### Model Registry
 
-#### List all saved models:
+Every model created with `prompt-train` or `auto-train` is automatically registered:
+
 ```bash
-python run.py registry
-```
-Output:
-```
-  Registered Models (2):
-  ----------------------------------------------------------------------
-  Name                      Base           Pipeline   Intent
-  ----------------------------------------------------------------------
-  trivia-bot                custom         scratch    Answer trivia questions
-  support-agent             gpt2           finetune   Customer support responses
+python run.py registry       # List all registered models
+python run.py load-model     # Load and chat with a registered model
 ```
 
-#### Load and chat with a saved model:
-```bash
-python run.py load-model
-```
-You'll be shown the registry and asked to type a model name. The system loads the model and tokenizer automatically and opens an interactive chat session.
+Models are stored in `trained_models/<name>/` with weights, tokenizer, and training data.
 
-#### Where models are stored:
+### Model Explorer
 
-| Location | What's There | How to Access |
-|----------|-------------|---------------|
-| `checkpoints/` | Default trained model (from `python run.py train`) | `python run.py chat` |
-| `trained_models/<name>/` | Named registered models (from prompt-train) | `python run.py load-model` |
-| `trained_models/registry.json` | Registry index of all named models | `python run.py registry` |
-
-Each registered model directory contains:
-- `model.pt` — The trained model weights
-- `tokenizer.pkl` — The tokenizer used during training
-- `data/` — Copy of the training data used (if available)
-
----
-
-### Exploring All Models (Local, Saved, API)
-
-The **explore** command (option 14) is a unified hub for accessing any model — whether it's a local checkpoint, a registered custom model, or an external API model:
+A unified hub to access any model — local checkpoints, registered models, or external APIs:
 
 ```bash
 python run.py explore
 ```
 
-```
-  ╔══════════════════════════════════════════════╗
-  ║           Model Explorer                     ║
-  ╠══════════════════════════════════════════════╣
-  ║  1. Local Model   (trained checkpoint)       ║
-  ║  2. Saved Models  (registered/named models)  ║
-  ║  3. API Models    (OpenAI, Anthropic, etc.)  ║
-  ║  0. Back to menu                             ║
-  ╚══════════════════════════════════════════════╝
+### Model Packager
+
+Export models as portable `.tar.gz` archives, or import them:
+
+```bash
+python run.py packager
 ```
 
-- **Option 1** — Loads your default trained model from `checkpoints/` and opens chat
-- **Option 2** — Shows all registered models, lets you pick one by name, loads it, and opens chat
-- **Option 3** — Connects to an external API (OpenAI, Anthropic, Ollama, or custom) for chat. If the chosen provider has no API key configured, it automatically tries other providers. If none are configured, it returns to the menu.
-
-This is the easiest way to access everything in one place.
+Archives include the model weights, tokenizer, config, training data, and a manifest.
 
 ---
 
-### External API Calls
+## APIs & Servers
 
-You can chat with external AI models (OpenAI GPT-4, Anthropic Claude, local Ollama models, or any OpenAI-compatible API).
-
-#### Setup
-
-Set API keys in `config.yaml` or as environment variables:
-
-```yaml
-# In config.yaml
-external_api:
-  openai:
-    api_key: "sk-your-openai-key-here"
-    default_model: "gpt-4o-mini"
-  anthropic:
-    api_key: "sk-ant-your-anthropic-key-here"
-    default_model: "claude-3-haiku-20240307"
-  ollama:
-    base_url: "http://localhost:11434"
-    default_model: "llama3"
-```
-
-Or via environment variables:
-```bash
-set OPENAI_API_KEY=sk-your-key-here          # Windows
-export OPENAI_API_KEY=sk-your-key-here       # Linux/Mac
-export ANTHROPIC_API_KEY=sk-ant-your-key
-```
-
-#### Interactive Chat
+### REST API
 
 ```bash
-python run.py external
+python run.py api            # Starts on http://localhost:8000
 ```
-
-Choose a provider (or type `auto` to automatically find the first configured one). If a provider isn't configured, the system skips it and checks the next one. If no providers are configured at all, it returns to the menu.
-
-#### Programmatic API Calls (Python)
-
-```python
-from external_api import api_call, ExternalAPIClient
-
-# Single call
-response = api_call("openai", "gpt-4o-mini", "What is machine learning?")
-print(response)
-
-# Multi-turn conversation
-client = ExternalAPIClient("openai", model="gpt-4o-mini")
-r1 = client.chat("What is Python?")
-r2 = client.chat("Can you give me an example?")  # Remembers context
-client.clear_history()  # Reset conversation
-
-# With system prompt
-response = api_call("anthropic", "claude-3-haiku-20240307",
-                    "Explain quantum computing",
-                    system_prompt="You are a physics professor")
-```
-
-#### Check Provider Status
-
-```bash
-python run.py providers
-```
-
-Output:
-```
-  External API Providers:
-  ------------------------------------------------------------
-  openai       OpenAI (GPT-4, GPT-3.5)                [configured]
-  anthropic    Anthropic (Claude)                      [no key set]
-  ollama       Ollama (Local)                          [not running]
-  custom       Custom API Endpoint                     [no key set]
-```
-
----
-
-### REST API Server
-
-Start the REST API to integrate with other applications:
-
-```bash
-python run.py api
-```
-
-The server runs at `http://localhost:8000` by default.
-
-#### Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Health check — returns status and whether a model is loaded |
-| `/chat` | POST | Send a message, get a response |
-| `/generate` | POST | Generate with custom parameters (temperature, top_k, etc.) |
-| `/config` | GET | View the current model configuration |
+| `/health` | GET | Health check |
+| `/chat` | POST | Send message, get response |
+| `/generate` | POST | Generate with custom params (temperature, top_k, etc.) |
+| `/config` | GET | View model configuration |
 
-#### Examples
-
-**Health check:**
-```bash
-curl http://localhost:8000/health
-```
-```json
-{"status": "ok", "model_loaded": true}
-```
-
-**Chat:**
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello!"}'
 ```
-```json
-{"response": "Hi! How can I help you today?"}
+
+### OpenAI-Compatible API
+
+Drop-in replacement for OpenAI's API — use with any OpenAI SDK client:
+
+```bash
+python run.py compat-api     # Starts on http://localhost:8001
 ```
 
-**Generate with custom parameters:**
+Endpoints: `/v1/chat/completions`, `/v1/images/generations`, `/v1/models`
+
+Routes requests to local models or configured external APIs transparently.
+
+### Web UI
+
+Browser-based chat interface:
+
 ```bash
-curl -X POST http://localhost:8000/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Tell me about AI",
-    "temperature": 0.5,
-    "top_k": 30,
-    "top_p": 0.85,
-    "max_length": 150
-  }'
+python run.py web-ui         # Starts on http://localhost:7860
 ```
 
 ---
 
-## Baseline Models
+## Data & Evaluation
 
-| Model | Params | Type | Description |
-|-------|--------|------|-------------|
-| `custom` | ~2M | From scratch | Custom transformer architecture |
-| `gpt2` | 124M | Pretrained | OpenAI GPT-2 Small |
-| `distilgpt2` | 82M | Pretrained | Distilled GPT-2 (faster, lighter) |
-| `gpt2-medium` | 355M | Pretrained | OpenAI GPT-2 Medium |
-| `pythia-160m` | 160M | Pretrained | EleutherAI Pythia 160M |
-| `pythia-410m` | 410M | Pretrained | EleutherAI Pythia 410M |
+### Dataset Manager
+
+Comprehensive dataset tools — versioning, quality scoring, augmentation, and deduplication:
+
+```bash
+python run.py dataset-mgr
+```
+
+Features:
+- **Versioning** — snapshot datasets, list versions, restore any version
+- **Quality scoring** — score prompt/response pairs on length, diversity, coherence
+- **Augmentation** — synonym swap, word dropout, word swap, case changes
+- **Deduplication** — remove duplicates with a global index
+
+### Evaluation Suite
+
+Measure model quality with standard metrics:
+
+```bash
+python run.py eval
+```
+
+Metrics: BLEU, ROUGE-1/ROUGE-L, perplexity, word error rate. Supports A/B model comparison and evaluation history logging.
+
+### Training Dashboard
+
+Live web dashboard showing training loss curves:
+
+```bash
+python run.py dashboard      # Starts on http://localhost:8501
+```
+
+Tracks training and validation loss across runs with a browser-based UI.
+
+---
+
+## Image Tools
+
+Advanced image processing utilities:
+
+```bash
+python run.py image-tools    # Upscale, variations, color transfer
+python run.py tag-mgr        # Tag frequency analysis & ontology
+python run.py auto-image     # Auto-collect image tags from Danbooru/web
+```
+
+Features:
+- Image upscaling (1x–8x)
+- Style variations generation
+- Color transfer between images
+- LoRA weight merging
+- ONNX export
+- Tag frequency analysis, rare/overrepresented tag detection
+- Tag categorization hierarchy (subject, style, quality, etc.)
+- Negative prompt suggestions
+
+---
+
+## Plugins
+
+Extend functionality with plugins:
+
+```bash
+python run.py plugins
+```
+
+Create a plugin by adding a `plugins/<name>/manifest.json` with name, description, and entry point.
 
 ---
 
 ## Configuration Reference
 
-All settings are in `config.yaml`. Key sections:
+All settings in `config.yaml`:
 
 | Section | Key Settings |
 |---------|-------------|
@@ -512,9 +542,39 @@ All settings are in `config.yaml`. Key sections:
 | `data` | `train_path`, `test_path` |
 | `checkpoint` | `save_dir`, `save_every`, `keep_last` |
 | `generation` | `max_length`, `temperature`, `top_k`, `top_p`, `repetition_penalty` |
+| `performance` | `mixed_precision`, `compile_model`, `num_workers` |
 | `api` | `host`, `port`, `debug` |
-| `external_api` | `openai`, `anthropic`, `ollama`, `custom` (each with `api_key`, `base_url`, `default_model`) |
+| `external_api` | `openai`, `anthropic`, `google`, `deepseek`, `ollama`, `custom` — each with `api_key`, `base_url`, `default_model` |
+| `auto_training` | `sources`, `max_pairs_per_topic`, `epochs` |
 | `device` | `use_cuda`, `cuda_device` |
+
+Baseline models:
+
+| Model | Params | Type |
+|-------|--------|------|
+| `custom` | ~2M | From scratch |
+| `gpt2` | 124M | Pretrained |
+| `distilgpt2` | 82M | Pretrained |
+| `gpt2-medium` | 355M | Pretrained |
+| `pythia-160m` | 160M | Pretrained |
+| `pythia-410m` | 410M | Pretrained |
+
+---
+
+## Docker
+
+```bash
+# Build
+docker build -t ai-model-suite .
+
+# Run (API server)
+docker run -p 8000:8000 ai-model-suite
+
+# Run with GPU
+docker run --gpus all -p 8000:8000 ai-model-suite
+
+# Exposed ports: 8000 (API), 5555 (Dashboard), 7860 (Web UI)
+```
 
 ---
 
@@ -522,58 +582,65 @@ All settings are in `config.yaml`. Key sections:
 
 ```
 AI_Model/
-├── run.py                  # Interactive runtime (main entry point)
-├── train.py                # Training script
-├── chat.py                 # Interactive chat with local models
-├── api.py                  # REST API server (Flask)
-├── model_registry.py       # Named model registry (save/load/delete)
-├── prompt_trainer.py       # Interactive prompt-based model creator
-├── external_api.py         # External API client (OpenAI, Anthropic, Ollama)
-├── config.yaml             # All configuration settings
-├── requirements.txt        # Python dependencies
-├── README.md               # This file
-├── models/
-│   ├── __init__.py         # Package exports
-│   ├── model.py            # Custom transformer architecture
-│   ├── model_factory.py    # Model factory (creates/loads any baseline)
-│   └── tokenizer.py        # Text tokenizer (word/char)
-├── utils/
-│   ├── __init__.py         # Package exports
-│   ├── data_loader.py      # Dataset and data loader creation
-│   └── trainer.py          # Training loop with checkpointing
-├── data/
-│   ├── train.json          # Training data
-│   ├── test.json           # Test/validation data
-│   └── custom/             # Custom prompt-trained data (auto-created)
-├── checkpoints/            # Model checkpoints (auto-created)
-├── trained_models/         # Registered named models (auto-created)
-│   ├── registry.json       # Model registry index
-│   └── <model-name>/      # Individual model directories
-└── tests/
-    ├── __init__.py
-    ├── test_model.py       # Model unit tests
-    ├── test_tokenizer.py   # Tokenizer unit tests
-    ├── test_data_loader.py # Data loader tests
-    ├── test_factory.py     # Model factory tests
-    ├── test_trainer.py     # Trainer tests
-    ├── test_api.py         # API endpoint tests
-    ├── test_registry.py    # Model registry tests
-    ├── test_prompt_trainer.py # Prompt trainer tests
-    ├── test_external_api.py   # External API tests
-    └── test_runtime.py     # Comprehensive runtime tests (all modules)
-```
-
----
-
-## Data Format
-
-Training and test data files are JSON arrays of prompt/response objects:
-
-```json
-[
-  {"prompt": "Hello!", "response": "Hi! How can I help?"},
-  {"prompt": "What is AI?", "response": "AI is the simulation of human intelligence by machines."}
-]
+├── run.py                      # Interactive runtime (main entry point)
+├── Dockerfile                  # Docker container definition
+├── requirements.txt            # Python dependencies
+├── README.md                   # This file
+│
+├── config/                     # Config templates (copy & fill in secrets)
+│   ├── .env.template
+│   ├── config.yaml.template
+│   ├── docker-compose.yml.template
+│   └── pytest.ini.template
+│
+├── services/                   # APIs, web interfaces, chat, integrations
+│   ├── api.py                  #   REST API server (Flask)
+│   ├── api_compat.py           #   OpenAI-compatible API endpoint
+│   ├── chat.py                 #   Interactive chat with local models
+│   ├── external_api.py         #   External API client (5+ providers)
+│   ├── web_ui.py               #   Browser-based web interface
+│   ├── agent.py                #   Agent with tool use & memory
+│   └── rag.py                  #   RAG document chat with citations
+│
+├── training/                   # Training pipelines & data collection
+│   ├── train.py                #   Main training script
+│   ├── prompt_trainer.py       #   Interactive prompt-based model creator
+│   ├── auto_trainer.py         #   Auto-train from public domain data
+│   ├── image_auto_trainer.py   #   Auto-collect image tags & datasets
+│   └── image_gen.py            #   Image generation & tag-based training
+│
+├── models/                     # Model architectures, registry, loading
+│   ├── model.py                #   Custom transformer architecture
+│   ├── model_factory.py        #   Model factory (creates/loads any baseline)
+│   ├── tokenizer.py            #   Text tokenizer (word/char)
+│   ├── registry.py             #   Named model registry (save/load/delete)
+│   └── loader.py               #   Universal model loader
+│
+├── utils/                      # Utilities and tools
+│   ├── data_loader.py          #   Dataset and data loader creation
+│   ├── trainer.py              #   Training loop with checkpointing
+│   ├── web_collector.py        #   Public domain web data collector
+│   ├── config_manager.py       #   Config profiles, env overrides, validation
+│   ├── dataset_manager.py      #   Dataset versioning, quality, augmentation
+│   ├── curriculum.py           #   Curriculum learning & domain mixing
+│   ├── eval_suite.py           #   Evaluation (BLEU, ROUGE, perplexity)
+│   ├── training_dashboard.py   #   Live training dashboard (web UI)
+│   ├── tag_manager.py          #   Tag frequency & ontology tools
+│   ├── image_tools.py          #   Upscale, variations, color transfer
+│   └── model_packager.py       #   Export/import model archives
+│
+├── plugins/                    # Plugin system
+│   └── loader.py               #   Plugin discovery & management
+│
+├── docs/                       # Documentation & tutorials
+│   └── tutorial.py             #   Interactive walkthrough
+│
+├── tests/                      # Test suite (700+ tests)
+│   └── test_*.py               #   One test file per module
+│
+├── data/                       # Training data (auto-created)
+├── checkpoints/                # Model checkpoints (auto-created)
+└── trained_models/             # Registered named models (auto-created)
 ```
 
 ---
@@ -581,8 +648,9 @@ Training and test data files are JSON arrays of prompt/response objects:
 ## Running Tests
 
 ```bash
-python run.py test              # From the interactive menu
-python -m pytest tests/ -v      # Directly with pytest
+python run.py test                    # From the interactive menu
+python -m pytest tests/ -v            # Directly with pytest
+python -m pytest tests/ -q --tb=short # Quick summary
 ```
 
-The test suite includes 184+ tests covering every module, runtime operation, and integration point.
+The test suite includes **700+ tests** covering every module, all runtime commands, API endpoints, model operations, data pipelines, and integration points.

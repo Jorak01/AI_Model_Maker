@@ -4,7 +4,7 @@ from typing import Optional, Any
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from models.tokenizer import Tokenizer
-from chat import load_config, get_device, load_model_and_tokenizer, generate_response
+from services.chat import load_config, get_device, load_model_and_tokenizer, generate_response
 
 app = Flask(__name__)
 CORS(app)

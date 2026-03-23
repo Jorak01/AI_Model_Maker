@@ -251,7 +251,7 @@ class Agent:
 
         # Generate with model if available
         if self.model and self.tokenizer and self.config:
-            from chat import generate_response
+            from services.chat import generate_response
             augmented = user_input
             if memory_context:
                 augmented = f"{memory_context}\n{user_input}"

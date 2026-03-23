@@ -1,8 +1,63 @@
-AI_Model.code-workspace
-data
-logs
-external_api.py
-.pytest_cache
-/.vscode
-/checkpoints
-/pytest.ini
+# ============================================
+# AI_Model Project .gitignore
+# ============================================
+
+# --- Sensitive / Private Config Files ---
+# (Use corresponding .template files in config/ to recreate)
+config.yaml
+docker-compose.yml
+.env
+pytest.ini
+
+# --- IDE / Editor ---
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# --- Virtual Environments ---
+venv/
+.venv/
+env/
+
+# --- Testing / Coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# --- Data / Outputs / Logs ---
+data/
+logs/
+outputs/
+exports/
+checkpoints/
+
+# --- Model Binaries ---
+*.pt
+*.pth
+*.pkl
+*.onnx
+*.tar.gz
+*.bin
+*.safetensors
+
+# --- Docker ---
+*.log
+
+# --- OS Files ---
+Thumbs.db
+.DS_Store
+desktop.ini
+/docker-compose.yml

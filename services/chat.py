@@ -91,10 +91,68 @@ def load_model_and_tokenizer(config: dict, device: str, checkpoint: Optional[str
     return model, tokenizer
 
 
-def interactive_chat(model, tokenizer, config, device):
-    print("\n" + "=" * 50)
-    print("  AI Chat  |  'quit' to exit  |  'clear' to reset")
-    print("=" * 50 + "\n")
+def _switch_model(config):
+    """Show model catalog and let user pick a different model.
+
+    Returns:
+        (model, tokenizer, device, name) tuple on success, or None if cancelled.
+    """
+    try:
+        from models.loader import build_model_catalog, display_catalog, load_model_by_number, load_model_by_name, _load_config, _get_device
+
+        loader_config = _load_config()
+        device = _get_device(loader_config)
+        catalog = build_model_catalog(loader_config)
+        display_catalog(catalog, loader_config)
+
+        if not catalog:
+            print("  No models available.")
+            return None
+
+        selection = input("  Enter model # or name (or 'cancel'): ").strip()
+        if not selection or selection.lower() in ('cancel', 'back', 'q', '0'):
+            return None
+
+        try:
+            number = int(selection)
+            model, tokenizer, entry = load_model_by_number(number, catalog, loader_config, device)
+        except ValueError:
+            model, tokenizer, entry = load_model_by_name(selection, catalog, loader_config, device)
+
+        if model is None or tokenizer is None:
+            if model is not None and tokenizer is None:
+                print("  ⚠ Model loaded but no tokenizer available.")
+                print("  Train the model first to create a tokenizer.")
+            return None
+
+        name = entry.get("name", "unknown") if entry else "unknown"
+        return (model, tokenizer, device, name)
+
+    except Exception as e:
+        print(f"  Error switching model: {e}")
+        return None
+
+
+def interactive_chat(model, tokenizer, config, device, model_name=None):
+    """Interactive chat loop with model switching support.
+
+    Commands during chat:
+        quit/exit/stop — return to menu
+        clear          — clear conversation context
+        /model         — switch to a different model
+        /info          — show current model info
+    """
+    _current_model = model
+    _current_tokenizer = tokenizer
+    _current_device = device
+    _model_name = model_name or "loaded model"
+
+    print("\n" + "=" * 55)
+    print("  AI Chat")
+    print("  " + "-" * 50)
+    print("  'quit' to exit  |  'clear' to reset")
+    print("  '/model' to switch model  |  '/info' for model info")
+    print("=" * 55 + "\n")
 
     while True:
         try:
@@ -112,8 +170,35 @@ def interactive_chat(model, tokenizer, config, device):
             print("[Cleared]\n")
             continue
 
+        # --- /model: switch to a different model ---
+        if user_input.lower() in ('/model', '/switch', 'switch'):
+            result = _switch_model(config)
+            if result is not None:
+                new_model, new_tok, new_dev, new_name = result
+                _current_model = new_model
+                _current_tokenizer = new_tok
+                _current_device = new_dev
+                _model_name = new_name
+                print(f"\n  Switched to: {_model_name}")
+                print("  Continue chatting!\n")
+            else:
+                print("  Keeping current model.\n")
+            continue
+
+        # --- /info: show current model info ---
+        if user_input.lower() in ('/info', '/status'):
+            total_params = sum(p.numel() for p in _current_model.parameters())
+            print(f"\n  Current model: {_model_name}")
+            print(f"  Parameters: {total_params:,}")
+            print(f"  Device: {_current_device}")
+            if _current_tokenizer:
+                print(f"  Vocab size: {len(_current_tokenizer)}")
+            print()
+            continue
+
         try:
-            response = generate_response(model, tokenizer, user_input, config, device)
+            response = generate_response(_current_model, _current_tokenizer,
+                                         user_input, config, _current_device)
             print(f"AI: {response}\n")
         except Exception as e:
             print(f"[Error: {e}]\n")

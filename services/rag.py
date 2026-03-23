@@ -234,7 +234,7 @@ class RAGPipeline:
         augmented = self.augment_prompt(query)
 
         if model and tokenizer and config:
-            from chat import generate_response
+            from services.chat import generate_response
             response = generate_response(model, tokenizer, augmented, config, device)
         else:
             response = f"[RAG Context Retrieved]\n{augmented}"

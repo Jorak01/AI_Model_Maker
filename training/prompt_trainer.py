@@ -9,7 +9,7 @@ from models.tokenizer import Tokenizer
 from models.model_factory import create_model, list_models, list_pipelines
 from utils.data_loader import create_data_loaders, load_and_prepare_data
 from utils.trainer import Trainer
-from model_registry import register_model
+from models.registry import register_model
 
 
 def load_config(path: str = 'config.yaml') -> dict:
@@ -271,7 +271,7 @@ def prompt_train_interactive(config_path: str = 'config.yaml'):
 
 def add_prompts_to_existing(model_name: str, config_path: str = 'config.yaml'):
     """Add more prompts to an existing model's training data and retrain."""
-    from model_registry import get_model_info
+    from models.registry import get_model_info
 
     info = get_model_info(model_name)
     if not info:

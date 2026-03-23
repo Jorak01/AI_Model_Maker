@@ -1,7 +1,7 @@
 """Tests for tutorial.py — tutorial steps and structure."""
 
 import pytest
-from tutorial import STEPS, run_tutorial
+from docs.tutorial import STEPS, run_tutorial
 
 
 class TestTutorialSteps:

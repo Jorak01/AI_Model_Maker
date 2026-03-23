@@ -102,7 +102,7 @@ def create_app():
         ]
         # Add registered models
         try:
-            from model_registry import _load_registry
+            from models.registry import _load_registry
             registry = _load_registry()
             for name, info in registry.get('models', {}).items():
                 models.append({
@@ -182,7 +182,7 @@ def create_app():
         else:
             # Fallback: try external API
             try:
-                from external_api import chat_with_provider, find_available_provider
+                from services.external_api import chat_with_provider, find_available_provider
                 provider = find_available_provider()
                 if provider:
                     user_msg = messages[-1].get('content', '') if messages else ''
@@ -195,7 +195,7 @@ def create_app():
         # Format as OpenAI response
         result = {
             "id": _generate_id(),
-            "object": "chat.completion",
+            "object": "services.chat.completion",
             "created": _timestamp(),
             "model": model_name,
             "choices": [
@@ -228,7 +228,7 @@ def create_app():
 
         images = []
         try:
-            from image_gen import generate_image
+            from training.image_gen import generate_image
             for i in range(n):
                 w, h = [int(x) for x in size.split('x')]
                 result = generate_image(prompt, width=w, height=h)

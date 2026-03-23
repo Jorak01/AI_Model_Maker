@@ -3,7 +3,7 @@
 import os
 import json
 import pytest
-from agent import (
+from services.agent import (
     Tool, tool_calculator, tool_current_time, tool_read_file, tool_list_files,
     MemorySystem, Agent, DEFAULT_TOOLS,
 )
@@ -83,7 +83,7 @@ class TestMemorySystem:
     @pytest.fixture(autouse=True)
     def setup(self, tmp_path, monkeypatch):
         self.mem_path = str(tmp_path / "memory.json")
-        monkeypatch.setattr("agent.MEMORY_PATH", self.mem_path)
+        monkeypatch.setattr("services.agent.MEMORY_PATH", self.mem_path)
 
     def test_add_message(self):
         mem = MemorySystem()
@@ -146,7 +146,7 @@ class TestAgent:
     @pytest.fixture(autouse=True)
     def setup(self, tmp_path, monkeypatch):
         self.mem_path = str(tmp_path / "memory.json")
-        monkeypatch.setattr("agent.MEMORY_PATH", self.mem_path)
+        monkeypatch.setattr("services.agent.MEMORY_PATH", self.mem_path)
 
     def test_create_agent(self):
         agent = Agent()

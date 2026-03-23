@@ -159,7 +159,7 @@ def evaluate_model_on_dataset(
         Dict with metrics and individual results
     """
     import torch
-    from chat import generate_response
+    from services.chat import generate_response
 
     model.eval()
     results = []
@@ -228,7 +228,7 @@ def compare_models(
 ) -> Dict:
     """Compare two models side by side on the same prompts."""
     import torch
-    from chat import generate_response
+    from services.chat import generate_response
 
     results = []
     scores_a, scores_b = [], []

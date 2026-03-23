@@ -10,7 +10,7 @@ except ImportError:
     HAS_FLASK = False
 
 if HAS_FLASK:
-    from api_compat import create_app
+    from services.api_compat import create_app
 
 
 @pytest.mark.skipif(not HAS_FLASK, reason="Flask not installed")
@@ -60,7 +60,7 @@ class TestApiCompat:
         assert len(data["choices"]) == 1
         assert data["choices"][0]["message"]["role"] == "assistant"
         assert "usage" in data
-        assert data["object"] == "chat.completion"
+        assert data["object"] == "services.chat.completion"
 
     def test_chat_completions_with_system(self, client):
         payload = {

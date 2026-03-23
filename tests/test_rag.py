@@ -3,7 +3,7 @@
 import os
 import json
 import pytest
-from rag import (
+from services.rag import (
     chunk_text, load_document, SimpleVectorStore, RAGPipeline,
 )
 
@@ -134,7 +134,7 @@ class TestRAGPipeline:
     def setup(self, tmp_path, monkeypatch):
         """Use temp directory for RAG index."""
         idx_path = str(tmp_path / "index.json")
-        monkeypatch.setattr("rag.INDEX_PATH", idx_path)
+        monkeypatch.setattr("services.rag.INDEX_PATH", idx_path)
         self.tmp_path = tmp_path
 
     def test_ingest_file(self):

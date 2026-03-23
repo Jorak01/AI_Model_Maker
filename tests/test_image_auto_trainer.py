@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from image_auto_trainer import (
+from training.image_auto_trainer import (
     STYLE_CATEGORIES, QUALITY_TAGS, NEGATIVE_QUALITY_TAGS,
     build_tag_captions, build_negative_prompts,
     _extract_tags_from_text, _extract_art_terms,
@@ -166,7 +166,7 @@ class TestBuildNegativePrompts:
 # ---------------------------------------------------------------------------
 
 class TestDanbooruAPI:
-    @patch("image_auto_trainer._safe_get")
+    @patch("training.image_auto_trainer._safe_get")
     def test_fetch_related_tags(self, mock_get):
         mock_get.return_value = json.dumps({
             "related_tags": [
@@ -177,13 +177,13 @@ class TestDanbooruAPI:
         tags = fetch_danbooru_related_tags("1girl", limit=5)
         assert isinstance(tags, list)
 
-    @patch("image_auto_trainer._safe_get")
+    @patch("training.image_auto_trainer._safe_get")
     def test_fetch_related_empty(self, mock_get):
         mock_get.return_value = None
         tags = fetch_danbooru_related_tags("nonexistent")
         assert tags == []
 
-    @patch("image_auto_trainer._safe_get")
+    @patch("training.image_auto_trainer._safe_get")
     def test_fetch_popular_tags(self, mock_get):
         mock_get.return_value = json.dumps([
             {"name": "solo"}, {"name": "1girl"}, {"name": "highres"},
@@ -192,7 +192,7 @@ class TestDanbooruAPI:
         assert len(tags) == 3
         assert "solo" in tags
 
-    @patch("image_auto_trainer._safe_get")
+    @patch("training.image_auto_trainer._safe_get")
     def test_fetch_popular_empty(self, mock_get):
         mock_get.return_value = None
         tags = fetch_danbooru_popular_tags()
@@ -204,14 +204,14 @@ class TestDanbooruAPI:
 # ---------------------------------------------------------------------------
 
 class TestCollectFromDanbooru:
-    @patch("image_auto_trainer.fetch_danbooru_related_tags")
+    @patch("training.image_auto_trainer.fetch_danbooru_related_tags")
     def test_collects_tags(self, mock_fetch):
         mock_fetch.return_value = ["tag_a", "tag_b", "tag_c"]
         tags = collect_tags_from_danbooru(["anime"], max_tags=10, verbose=False)
         assert isinstance(tags, list)
         assert len(tags) > 0
 
-    @patch("image_auto_trainer.fetch_danbooru_related_tags")
+    @patch("training.image_auto_trainer.fetch_danbooru_related_tags")
     def test_empty_result(self, mock_fetch):
         mock_fetch.return_value = []
         tags = collect_tags_from_danbooru(["nonexistent"], max_tags=10, verbose=False)
@@ -219,8 +219,8 @@ class TestCollectFromDanbooru:
 
 
 class TestCollectFromWeb:
-    @patch("image_auto_trainer.fetch_url_text")
-    @patch("image_auto_trainer.search_duckduckgo")
+    @patch("training.image_auto_trainer.fetch_url_text")
+    @patch("training.image_auto_trainer.search_duckduckgo")
     def test_collects_tags(self, mock_search, mock_fetch):
         mock_search.return_value = [
             {"title": "Art Tags", "url": "http://example.com",
@@ -230,7 +230,7 @@ class TestCollectFromWeb:
         tags = collect_tags_from_web(["art prompts"], max_tags=10, verbose=False)
         assert isinstance(tags, list)
 
-    @patch("image_auto_trainer.search_duckduckgo")
+    @patch("training.image_auto_trainer.search_duckduckgo")
     def test_empty_results(self, mock_search):
         mock_search.return_value = []
         tags = collect_tags_from_web(["nonexistent"], max_tags=10, verbose=False)
@@ -238,7 +238,7 @@ class TestCollectFromWeb:
 
 
 class TestCollectFromWikipedia:
-    @patch("image_auto_trainer.fetch_wikipedia_article")
+    @patch("training.image_auto_trainer.fetch_wikipedia_article")
     def test_collects_terms(self, mock_fetch):
         mock_fetch.return_value = (
             "The impressionist style is characterized by visible brushstrokes. "
@@ -248,7 +248,7 @@ class TestCollectFromWikipedia:
         tags = collect_tags_from_wikipedia(["Impressionism"], max_tags=20, verbose=False)
         assert isinstance(tags, list)
 
-    @patch("image_auto_trainer.fetch_wikipedia_article")
+    @patch("training.image_auto_trainer.fetch_wikipedia_article")
     def test_empty_article(self, mock_fetch):
         mock_fetch.return_value = ""
         tags = collect_tags_from_wikipedia(["Nonexistent"], max_tags=10, verbose=False)
@@ -260,9 +260,9 @@ class TestCollectFromWikipedia:
 # ---------------------------------------------------------------------------
 
 class TestAutoCollectTags:
-    @patch("image_auto_trainer.collect_tags_from_wikipedia")
-    @patch("image_auto_trainer.collect_tags_from_web")
-    @patch("image_auto_trainer.collect_tags_from_danbooru")
+    @patch("training.image_auto_trainer.collect_tags_from_wikipedia")
+    @patch("training.image_auto_trainer.collect_tags_from_web")
+    @patch("training.image_auto_trainer.collect_tags_from_danbooru")
     def test_produces_dataset(self, mock_dan, mock_web, mock_wiki):
         mock_dan.return_value = ["danbooru_tag1", "danbooru_tag2"]
         mock_web.return_value = ["web_tag1", "web_tag2"]
@@ -282,7 +282,7 @@ class TestAutoCollectTags:
             # Cleanup
             os.unlink(result)
 
-    @patch("image_auto_trainer.collect_tags_from_danbooru")
+    @patch("training.image_auto_trainer.collect_tags_from_danbooru")
     def test_custom_style(self, mock_dan):
         mock_dan.return_value = ["custom_tag"]
         result = auto_collect_tags(
@@ -303,7 +303,7 @@ class TestAutoCollectTags:
 
 class TestImports:
     def test_import_image_auto_trainer(self):
-        import image_auto_trainer
+        import training.image_auto_trainer as image_auto_trainer
         assert hasattr(image_auto_trainer, 'STYLE_CATEGORIES')
         assert hasattr(image_auto_trainer, 'auto_collect_tags')
         assert hasattr(image_auto_trainer, 'auto_train_image')

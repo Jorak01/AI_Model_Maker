@@ -77,7 +77,7 @@ def export_model(
 
         # Check registry for model info
         try:
-            from model_registry import get_model_info
+            from models.registry import get_model_info
             info = get_model_info(model_name)
             if info:
                 manifest["model_info"] = info
@@ -180,7 +180,7 @@ def import_model(
         # Register model
         if register and manifest:
             try:
-                from model_registry import register_model
+                from models.registry import register_model
                 info = manifest.get("model_info", {})
                 register_model(
                     name=model_name or "imported-model",

@@ -9,7 +9,7 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from model_loader import (
+from models.loader import (
     build_model_catalog, display_catalog,
     get_entry_by_number, get_entry_by_name,
     load_model_by_number, load_model_by_name,
@@ -93,7 +93,7 @@ class TestCatalogBuilders:
 
     def test_get_registered_models_empty(self, monkeypatch, tmp_path):
         """Returns empty list when no models registered."""
-        import model_registry
+        import models.registry as model_registry
         reg_dir = str(tmp_path / "trained_models")
         reg_file = os.path.join(reg_dir, "registry.json")
         monkeypatch.setattr(model_registry, "REGISTRY_DIR", reg_dir)
@@ -757,7 +757,7 @@ class TestDeleteModelEntry:
 
     def test_delete_registered_model(self, monkeypatch, tmp_path, capsys):
         """Deleting a registered model removes files + registry entry."""
-        import model_registry
+        import models.registry as model_registry
 
         # Set up isolated registry
         reg_dir = str(tmp_path / "trained_models")
@@ -851,12 +851,12 @@ class TestPostLoadMenuOptions:
 
     def test_import_delete_model_entry(self):
         """delete_model_entry should be importable."""
-        import model_loader
+        import models.loader as model_loader
         assert hasattr(model_loader, 'delete_model_entry')
 
     def test_import_is_back(self):
         """_is_back should be importable."""
-        import model_loader
+        import models.loader as model_loader
         assert hasattr(model_loader, '_is_back')
 
 
@@ -881,7 +881,7 @@ class TestVerifyModelEntry:
 
     def test_verify_untrained_pretrained_not_cached(self, capsys, monkeypatch):
         """Pretrained model not in cache should fail verification."""
-        monkeypatch.setattr("model_loader._is_hf_model_installed", lambda k: False)
+        monkeypatch.setattr("models.loader._is_hf_model_installed", lambda k: False)
         entry = {
             "source": "untrained", "name": "gpt2", "key": "gpt2",
             "pretrained": True, "model_path": None, "installed": False,
@@ -894,7 +894,7 @@ class TestVerifyModelEntry:
 
     def test_verify_untrained_pretrained_cached(self, capsys, monkeypatch):
         """Pretrained model in cache should pass verification."""
-        monkeypatch.setattr("model_loader._is_hf_model_installed", lambda k: True)
+        monkeypatch.setattr("models.loader._is_hf_model_installed", lambda k: True)
         entry = {
             "source": "untrained", "name": "gpt2", "key": "gpt2",
             "pretrained": True, "model_path": None, "installed": True,
@@ -1084,7 +1084,7 @@ class TestImports:
     """Verify all model_loader exports are importable."""
 
     def test_import_model_loader(self):
-        import model_loader
+        import models.loader as model_loader
         assert hasattr(model_loader, 'build_model_catalog')
         assert hasattr(model_loader, 'display_catalog')
         assert hasattr(model_loader, 'get_entry_by_number')

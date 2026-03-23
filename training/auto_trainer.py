@@ -8,7 +8,7 @@ Usage:
     python auto_trainer.py
 
     # Programmatic
-    from auto_trainer import auto_train
+    from training.auto_trainer import auto_train
     auto_train(
         topics=["quantum computing", "neural networks"],
         model_name="science-bot",
@@ -29,7 +29,7 @@ from models.tokenizer import Tokenizer
 from models.model_factory import create_model
 from utils.data_loader import create_data_loaders, load_and_prepare_data
 from utils.trainer import Trainer
-from model_registry import register_model
+from models.registry import register_model
 
 
 def load_config(path: str = "config.yaml") -> dict:
