@@ -1,3 +1,5 @@
 AI_Model.code-workspace
 checkpoints
-/checkpoints
+data
+logs
+/api.py
