@@ -1,0 +1,77 @@
+# AI Model Suite - Docker Compose Stack
+# Usage: docker-compose up
+# GPU:   docker-compose --profile gpu up
+
+version: "3.8"
+
+services:
+  api:
+    build: .
+    container_name: ai-model-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./data:/app/data
+      - ./plugins:/app/plugins
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - AI_MODEL_DEVICE=cpu
+      - AI_MODEL_API_PORT=8000
+    command: ["python", "run.py", "api"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  compat-api:
+    build: .
+    container_name: ai-model-compat
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - AI_MODEL_DEVICE=cpu
+    command: ["python", "api_compat.py"]
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  dashboard:
+    build: .
+    container_name: ai-model-dashboard
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./logs:/app/logs
+    command: ["python", "-c", "from utils.training_dashboard import start_dashboard; start_dashboard(port=5555)"]
+    restart: unless-stopped
+
+  # GPU-enabled API (use with: docker-compose --profile gpu up)
+  api-gpu:
+    build: .
+    container_name: ai-model-api-gpu
+    profiles: ["gpu"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./data:/app/data
+      - ./plugins:/app/plugins
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - AI_MODEL_DEVICE=cuda:0
+    command: ["python", "run.py", "api"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped

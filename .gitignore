@@ -5,3 +5,4 @@ external_api.py
 .pytest_cache
 /.vscode
 /checkpoints
+/pytest.ini

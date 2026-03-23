@@ -32,35 +32,63 @@ def print_banner():
 
 def print_menu():
     print()
-    print("  ─── Training & Chat ─────────────────────────")
-    print("   1  train           Train the model")
-    print("   2  chat            Interactive chat (local)")
-    print("   3  prompt-train    Create model from prompts")
-    print("   4  image-gen       Image generation & training")
+    print("  ─── Training & Data ─────────────────────────")
+    print("   1  train            Train the model")
+    print("   2  prompt-train     Create model from prompts")
+    print("   3  auto-train       Auto-train from public data")
+    print("   4  auto-image       Auto-collect image tags")
+    print("   5  dataset-mgr      Dataset management hub")
+    print("   6  curriculum       Curriculum learning")
+    print()
+    print("  ─── Chat & Generation ────────────────────────")
+    print("   7  chat             Interactive chat (local)")
+    print("   8  image-gen        Image generation & training")
+    print("   9  external         Chat via external API")
+    print("  10  rag              RAG document chat")
+    print("  11  agent            Agent with tool use")
     print()
     print("  ─── Model Management ────────────────────────")
-    print("   5  load            Load any model by number")
-    print("   6  explore         Browse all models")
-    print("   7  registry        List registered models")
-    print("   8  load-model      Chat with registered model")
+    print("  12  load             Load any model by number")
+    print("  13  explore          Browse all models")
+    print("  14  registry         List registered models")
+    print("  15  load-model       Chat with registered model")
+    print("  16  packager         Export/import model archives")
     print()
-    print("  ─── External & API ──────────────────────────")
-    print("   9  external        Chat via external API")
-    print("  10  providers       List API providers")
-    print("  11  api             Start REST API server")
+    print("  ─── Evaluation & Monitoring ─────────────────")
+    print("  17  eval             Evaluation suite (BLEU, etc)")
+    print("  18  dashboard        Training dashboard (web)")
+    print()
+    print("  ─── Image Tools ────────────────────────────")
+    print("  19  tag-mgr          Tag frequency & ontology")
+    print("  20  image-tools      Upscale, variations, color")
+    print()
+    print("  ─── API & Servers ──────────────────────────")
+    print("  21  api              Start REST API server")
+    print("  22  compat-api       OpenAI-compatible API")
+    print("  23  web-ui           Browser-based interface")
+    print("  24  providers        List API providers")
+    print()
+    print("  ─── Infrastructure ─────────────────────────")
+    print("  25  plugins          Plugin manager")
+    print("  26  config-mgr       Config profiles & validation")
     print()
     print("  ─── Info & System ───────────────────────────")
-    print("  12  models          Available base models")
-    print("  13  pipelines       Training pipelines")
-    print("  14  model-families  Models grouped by family")
-    print("  15  config          Show configuration")
-    print("  16  status          Model/checkpoint status")
-    print("  17  refresh-models  Update model lists")
-    print("  18  test            Run all tests")
+    print("  27  models           Available base models")
+    print("  28  pipelines        Training pipelines")
+    print("  29  model-families   Models grouped by family")
+    print("  30  config           Show configuration")
+    print("  31  status           Model/checkpoint status")
+    print("  32  refresh-models   Update model lists")
+    print("  33  tutorial         Interactive tutorial")
+    print("  34  test             Run all tests")
     print()
-    print("   0  stop / quit     Exit")
+    print("   0  stop / quit      Exit")
     print()
 
+
+# =========================================================================
+# Command handlers
+# =========================================================================
 
 def cmd_train():
     """Run training."""
@@ -347,6 +375,28 @@ def cmd_image_gen():
         print(f"\n  Image generation error: {e}")
 
 
+def cmd_auto_train():
+    """Auto-train a model from public domain data (web, Wikipedia, etc.)."""
+    from auto_trainer import auto_train_interactive
+    try:
+        auto_train_interactive()
+    except KeyboardInterrupt:
+        print("\n  Auto training cancelled.")
+    except Exception as e:
+        print(f"\n  Auto training error: {e}")
+
+
+def cmd_auto_image():
+    """Auto-collect image tags and build datasets from public sources."""
+    from image_auto_trainer import auto_image_train_interactive
+    try:
+        auto_image_train_interactive()
+    except KeyboardInterrupt:
+        print("\n  Image auto training cancelled.")
+    except Exception as e:
+        print(f"\n  Image auto training error: {e}")
+
+
 def cmd_explore():
     """Unified model explorer — access local, saved, and API models from one place."""
     print("\n" + "=" * 55)
@@ -478,12 +528,11 @@ def _explore_saved():
 
     if not models:
         print("\n  No registered models yet.")
-        print("  Use 'prompt-train' (option 3) to create and register a custom model.")
+        print("  Use 'prompt-train' (option 2) to create and register a custom model.")
         return
 
     list_registered_models()
 
-    # Show detailed info for each model
     print("  Actions:")
     print("    Type a model name to load and chat")
     print("    Type 'info <name>' for details")
@@ -587,6 +636,187 @@ def _explore_api():
         print(f"\n  External API error: {e}")
 
 
+# =========================================================================
+# New module command handlers
+# =========================================================================
+
+def cmd_dataset_mgr():
+    """Dataset management hub — versioning, quality, augmentation, dedup."""
+    from utils.dataset_manager import interactive_dataset_manager
+    try:
+        interactive_dataset_manager()
+    except KeyboardInterrupt:
+        print("\n  Dataset manager cancelled.")
+    except Exception as e:
+        print(f"\n  Dataset manager error: {e}")
+
+
+def cmd_curriculum():
+    """Curriculum learning — progressive training and domain mixing."""
+    from utils.curriculum import interactive_curriculum
+    try:
+        interactive_curriculum()
+    except KeyboardInterrupt:
+        print("\n  Curriculum manager cancelled.")
+    except Exception as e:
+        print(f"\n  Curriculum error: {e}")
+
+
+def cmd_eval():
+    """Evaluation suite — BLEU, ROUGE, perplexity, A/B comparison."""
+    from utils.eval_suite import interactive_eval
+    try:
+        interactive_eval()
+    except KeyboardInterrupt:
+        print("\n  Evaluation cancelled.")
+    except Exception as e:
+        print(f"\n  Evaluation error: {e}")
+
+
+def cmd_dashboard():
+    """Training dashboard — live loss curves in a web UI."""
+    from utils.training_dashboard import interactive_dashboard
+    try:
+        interactive_dashboard()
+    except KeyboardInterrupt:
+        print("\n  Dashboard stopped.")
+    except Exception as e:
+        print(f"\n  Dashboard error: {e}")
+
+
+def cmd_tag_mgr():
+    """Tag management — frequency analysis, hierarchy, negative prompts."""
+    from utils.tag_manager import interactive_tag_manager
+    try:
+        interactive_tag_manager()
+    except KeyboardInterrupt:
+        print("\n  Tag manager cancelled.")
+    except Exception as e:
+        print(f"\n  Tag manager error: {e}")
+
+
+def cmd_image_tools():
+    """Image tools — upscale, variations, color transfer, LoRA merge."""
+    from utils.image_tools import interactive_image_tools
+    try:
+        interactive_image_tools()
+    except KeyboardInterrupt:
+        print("\n  Image tools cancelled.")
+    except Exception as e:
+        print(f"\n  Image tools error: {e}")
+
+
+def cmd_rag():
+    """RAG — ingest documents, context-aware chat with citations."""
+    from rag import interactive_rag
+    try:
+        interactive_rag()
+    except KeyboardInterrupt:
+        print("\n  RAG cancelled.")
+    except Exception as e:
+        print(f"\n  RAG error: {e}")
+
+
+def cmd_agent():
+    """Agent framework — tool use, memory, multi-step reasoning."""
+    from agent import interactive_agent
+    try:
+        interactive_agent()
+    except KeyboardInterrupt:
+        print("\n  Agent stopped.")
+    except Exception as e:
+        print(f"\n  Agent error: {e}")
+
+
+def cmd_packager():
+    """Model packaging — export/import .tar.gz model archives."""
+    from utils.model_packager import interactive_packager
+    try:
+        interactive_packager()
+    except KeyboardInterrupt:
+        print("\n  Packager cancelled.")
+    except Exception as e:
+        print(f"\n  Packager error: {e}")
+
+
+def cmd_plugins():
+    """Plugin manager — discover, load, and manage plugins."""
+    from plugins.loader import get_plugin_manager
+    try:
+        pm = get_plugin_manager()
+        print("\n" + "=" * 55)
+        print("       Plugin Manager")
+        print("=" * 55)
+        pm.discover()
+        plugins = pm.list_plugins()
+        if plugins:
+            print(f"\n  Found {len(plugins)} plugin(s):")
+            for p in plugins:
+                status = "loaded" if p.get('loaded') else "available"
+                print(f"    {p['name']:<20} [{status}]  {p.get('description', '')}")
+        else:
+            print("\n  No plugins found.")
+            print("  Create a plugins/<name>/manifest.json to add one.")
+        print()
+    except KeyboardInterrupt:
+        print("\n  Plugin manager cancelled.")
+    except Exception as e:
+        print(f"\n  Plugin manager error: {e}")
+
+
+def cmd_config_mgr():
+    """Config manager — profiles, env overrides, validation."""
+    from utils.config_manager import interactive_config_manager
+    try:
+        interactive_config_manager()
+    except KeyboardInterrupt:
+        print("\n  Config manager cancelled.")
+    except Exception as e:
+        print(f"\n  Config manager error: {e}")
+
+
+def cmd_compat_api():
+    """Start OpenAI-compatible API server."""
+    from api_compat import create_app
+    print("\n  Starting OpenAI-compatible API on port 8001...")
+    print("  Endpoints: /v1/chat/completions, /v1/images/generations, /v1/models")
+    print("  Use as base_url: http://localhost:8001/v1")
+    print("  Press Ctrl+C to stop.\n")
+    try:
+        app = create_app()
+        app.run(host='0.0.0.0', port=8001, debug=False)
+    except KeyboardInterrupt:
+        print("\n  Compat API stopped.")
+    except Exception as e:
+        print(f"\n  Compat API error: {e}")
+
+
+def cmd_web_ui():
+    """Launch browser-based web interface."""
+    from web_ui import interactive_web_ui
+    try:
+        interactive_web_ui()
+    except KeyboardInterrupt:
+        print("\n  Web UI stopped.")
+    except Exception as e:
+        print(f"\n  Web UI error: {e}")
+
+
+def cmd_tutorial():
+    """Run the interactive tutorial."""
+    from tutorial import run_tutorial
+    try:
+        run_tutorial()
+    except KeyboardInterrupt:
+        print("\n  Tutorial ended.")
+    except Exception as e:
+        print(f"\n  Tutorial error: {e}")
+
+
+# =========================================================================
+# Main
+# =========================================================================
+
 def main():
     """Main interactive runtime loop."""
     global _running
@@ -594,28 +824,48 @@ def main():
     print_banner()
 
     commands = {
-        # Training & Chat
+        # Training & Data
         '1': cmd_train, 'train': cmd_train,
-        '2': cmd_chat, 'chat': cmd_chat,
-        '3': cmd_prompt_train, 'prompt-train': cmd_prompt_train,
-        '4': cmd_image_gen, 'image-gen': cmd_image_gen, 'image': cmd_image_gen,
-        # Model Management
-        '5': cmd_load, 'load': cmd_load,
-        '6': cmd_explore, 'explore': cmd_explore,
-        '7': cmd_registry, 'registry': cmd_registry,
-        '8': cmd_load_model, 'load-model': cmd_load_model,
-        # External & API
+        '2': cmd_prompt_train, 'prompt-train': cmd_prompt_train,
+        '3': cmd_auto_train, 'auto-train': cmd_auto_train, 'auto': cmd_auto_train,
+        '4': cmd_auto_image, 'auto-image': cmd_auto_image,
+        '5': cmd_dataset_mgr, 'dataset-mgr': cmd_dataset_mgr, 'dataset': cmd_dataset_mgr,
+        '6': cmd_curriculum, 'curriculum': cmd_curriculum,
+        # Chat & Generation
+        '7': cmd_chat, 'chat': cmd_chat,
+        '8': cmd_image_gen, 'image-gen': cmd_image_gen, 'image': cmd_image_gen,
         '9': cmd_external, 'external': cmd_external,
-        '10': cmd_providers, 'providers': cmd_providers,
-        '11': cmd_api, 'api': cmd_api,
+        '10': cmd_rag, 'rag': cmd_rag,
+        '11': cmd_agent, 'agent': cmd_agent,
+        # Model Management
+        '12': cmd_load, 'load': cmd_load,
+        '13': cmd_explore, 'explore': cmd_explore,
+        '14': cmd_registry, 'registry': cmd_registry,
+        '15': cmd_load_model, 'load-model': cmd_load_model,
+        '16': cmd_packager, 'packager': cmd_packager,
+        # Evaluation & Monitoring
+        '17': cmd_eval, 'eval': cmd_eval,
+        '18': cmd_dashboard, 'dashboard': cmd_dashboard,
+        # Image Tools
+        '19': cmd_tag_mgr, 'tag-mgr': cmd_tag_mgr, 'tags': cmd_tag_mgr,
+        '20': cmd_image_tools, 'image-tools': cmd_image_tools,
+        # API & Servers
+        '21': cmd_api, 'api': cmd_api,
+        '22': cmd_compat_api, 'compat-api': cmd_compat_api, 'openai-api': cmd_compat_api,
+        '23': cmd_web_ui, 'web-ui': cmd_web_ui, 'web': cmd_web_ui,
+        '24': cmd_providers, 'providers': cmd_providers,
+        # Infrastructure
+        '25': cmd_plugins, 'plugins': cmd_plugins,
+        '26': cmd_config_mgr, 'config-mgr': cmd_config_mgr,
         # Info & System
-        '12': cmd_models, 'models': cmd_models,
-        '13': cmd_pipelines, 'pipelines': cmd_pipelines,
-        '14': cmd_model_families, 'model-families': cmd_model_families, 'families': cmd_model_families,
-        '15': cmd_config, 'config': cmd_config,
-        '16': cmd_status, 'status': cmd_status,
-        '17': cmd_refresh_models, 'refresh-models': cmd_refresh_models, 'refresh': cmd_refresh_models,
-        '18': cmd_test, 'test': cmd_test,
+        '27': cmd_models, 'models': cmd_models,
+        '28': cmd_pipelines, 'pipelines': cmd_pipelines,
+        '29': cmd_model_families, 'model-families': cmd_model_families, 'families': cmd_model_families,
+        '30': cmd_config, 'config': cmd_config,
+        '31': cmd_status, 'status': cmd_status,
+        '32': cmd_refresh_models, 'refresh-models': cmd_refresh_models, 'refresh': cmd_refresh_models,
+        '33': cmd_tutorial, 'tutorial': cmd_tutorial,
+        '34': cmd_test, 'test': cmd_test,
     }
 
     # If command-line args provided, run directly

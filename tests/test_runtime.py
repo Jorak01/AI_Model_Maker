@@ -684,9 +684,9 @@ class TestRunMenu:
         print_menu()
         captured = capsys.readouterr()
         # Section headers
-        assert "Training & Chat" in captured.out
+        assert "Training & Data" in captured.out
         assert "Model Management" in captured.out
-        assert "External & API" in captured.out
+        assert "API & Servers" in captured.out
         assert "Info & System" in captured.out
         # Commands present
         assert "train" in captured.out

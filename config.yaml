@@ -92,6 +92,18 @@ external_api:
     base_url: ""
     default_model: ""
 
+# Auto Training — Build models from public domain data
+# Uses web search, Wikipedia, and other public sources to collect data
+# and automatically build training datasets.
+auto_training:
+  sources:                    # Which public sources to search
+    - wikipedia
+    - web
+  max_pairs_per_topic: 150    # Max training pairs per search topic
+  epochs: 10                  # Training epochs for auto-trained models
+  fetch_pages: true           # Fetch full web pages (not just snippets)
+  cache_age: 86400            # Cache web results for 24h (seconds)
+
 # Performance Optimization
 # These settings control speed optimizations across training and inference.
 performance:

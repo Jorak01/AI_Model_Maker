@@ -11,10 +11,11 @@ pyyaml>=6.0
 # Progress
 tqdm>=4.65.0
 
-# API
+# API & Web
 flask>=3.0.0
 flask-cors>=4.0.0
 requests>=2.31.0
+beautifulsoup4>=4.12.0
 
 # Testing
 pytest>=7.0.0
@@ -22,8 +23,15 @@ pytest>=7.0.0
 # Image Generation (optional)
 diffusers>=0.25.0
 Pillow>=10.0.0
-# peft>=0.7.0  # Optional: LoRA fine-tuning
+# peft>=0.7.0        # Optional: LoRA fine-tuning
 # torchvision>=0.15.0  # Optional: image transforms for training
 
-# Optional
+# Optional - Monitoring & Visualization
 tensorboard>=2.13.0
+# gradio>=4.0.0       # Optional: alternative web UI
+# rich>=13.0.0        # Optional: colored CLI output
+
+# Optional - Advanced AI
+# chromadb>=0.4.0     # Optional: vector store for RAG
+# onnx>=1.14.0        # Optional: ONNX model export
+# onnxruntime>=1.15.0 # Optional: ONNX inference
