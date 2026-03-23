@@ -108,63 +108,25 @@ def cmd_train():
 
 
 def cmd_chat():
-    """Run interactive chat — uses active model if loaded, otherwise loads from checkpoint."""
-    global _active_model, _active_tokenizer, _active_device, _active_model_name
+    """Run interactive chat — requires a model to be loaded first via 'load' (option 12)."""
+    if _active_model is None or _active_tokenizer is None:
+        print("\n  No model loaded.")
+        print("  Use 'load' (option 12) to load a model first, then come back to chat.")
+        return
 
     try:
-        if _active_model is not None and _active_tokenizer is not None:
-            # Use the globally loaded model
-            import yaml
-            try:
-                with open('config.yaml', 'r') as f:
-                    config = yaml.safe_load(f)
-            except Exception:
-                config = {'generation': {'max_length': 100, 'temperature': 0.8,
-                                         'top_k': 50, 'top_p': 0.9, 'repetition_penalty': 1.2},
-                          'device': {'use_cuda': False, 'cuda_device': 0}}
+        import yaml
+        try:
+            with open('config.yaml', 'r') as f:
+                config = yaml.safe_load(f)
+        except Exception:
+            config = {'generation': {'max_length': 100, 'temperature': 0.8,
+                                     'top_k': 50, 'top_p': 0.9, 'repetition_penalty': 1.2},
+                      'device': {'use_cuda': False, 'cuda_device': 0}}
 
-            print(f"\n  Using active model: {_active_model_name}")
-            from services.chat import interactive_chat
-            interactive_chat(_active_model, _active_tokenizer, config,
-                             _active_device or 'cpu', model_name=_active_model_name)
-        else:
-            # No active model — offer to pick one or load from checkpoint
-            print("\n  No model currently loaded.")
-            print("  1  Load from checkpoint (default trained model)")
-            print("  2  Select a model from the catalog")
-            try:
-                choice = input("  [1/2, default=1]: ").strip()
-            except (KeyboardInterrupt, EOFError):
-                return
-
-            if choice == '2':
-                # Use model catalog to select
-                from services.chat import _switch_model
-                import yaml
-                try:
-                    with open('config.yaml', 'r') as f:
-                        config = yaml.safe_load(f)
-                except Exception:
-                    config = {'generation': {'max_length': 100, 'temperature': 0.8,
-                                             'top_k': 50, 'top_p': 0.9, 'repetition_penalty': 1.2},
-                              'device': {'use_cuda': False, 'cuda_device': 0}}
-
-                result = _switch_model(config)
-                if result is not None:
-                    model, tokenizer, device, name = result
-                    _active_model = model
-                    _active_tokenizer = tokenizer
-                    _active_device = device
-                    _active_model_name = name
-                    from services.chat import interactive_chat
-                    interactive_chat(model, tokenizer, config, device, model_name=name)
-                else:
-                    print("  No model selected.")
-            else:
-                # Default: load from checkpoint
-                from services.chat import main as chat_main
-                chat_main()
-
+        from services.chat import interactive_chat
+        interactive_chat(_active_model, _active_tokenizer, config,
+                         _active_device or 'cpu', model_name=_active_model_name)
     except KeyboardInterrupt:
         print("\nChat ended.")
     except Exception as e:

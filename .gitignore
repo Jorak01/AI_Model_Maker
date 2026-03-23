@@ -61,3 +61,5 @@ Thumbs.db
 .DS_Store
 desktop.ini
 /docker-compose.yml
+/__pycache__
+/.vscode
