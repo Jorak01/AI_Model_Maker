@@ -9,9 +9,15 @@ Type 'stop' or 'quit' at any time to exit.
 import sys
 import os
 import signal
+import subprocess
+import importlib
+import re
 
 # Global flag for graceful shutdown
 _running = True
+
+# Path to .env file
+_ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 
 # Global active model state — set by 'load' command, used by 'chat'
 _active_model = None
@@ -28,6 +34,319 @@ def signal_handler(sig, frame):
 
 
 signal.signal(signal.SIGINT, signal_handler)
+
+
+# =========================================================================
+# Dependency checker — runs once at launch
+# =========================================================================
+
+# Map of pip package names to their Python import names (where they differ)
+_IMPORT_NAME_MAP = {
+    'pyyaml': 'yaml',
+    'pillow': 'PIL',
+    'flask-cors': 'flask_cors',
+    'beautifulsoup4': 'bs4',
+    'scikit-learn': 'sklearn',
+}
+
+
+def _parse_requirements(filepath='requirements.txt'):
+    """Parse requirements.txt and return list of (pip_name, import_name) tuples.
+
+    Skips comments, blank lines, and commented-out optional packages.
+    """
+    packages = []
+    req_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filepath)
+    if not os.path.exists(req_path):
+        return packages
+
+    with open(req_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            # Skip empty lines, comments, and commented-out optionals
+            if not line or line.startswith('#'):
+                continue
+            # Extract package name (strip version specifiers like >=, ==, ~=, etc.)
+            pip_name = re.split(r'[><=!~;]', line)[0].strip()
+            if not pip_name:
+                continue
+            # Determine the import name
+            import_name = _IMPORT_NAME_MAP.get(pip_name.lower(), pip_name.lower().replace('-', '_'))
+            packages.append((pip_name, import_name))
+    return packages
+
+
+def check_and_install_dependencies():
+    """Check all required packages from requirements.txt and install any that are missing."""
+    print("\n  Checking dependencies...")
+
+    packages = _parse_requirements()
+    if not packages:
+        print("  No requirements.txt found or it is empty — skipping.")
+        return
+
+    missing = []
+    for pip_name, import_name in packages:
+        try:
+            importlib.import_module(str(import_name))
+        except ImportError:
+            missing.append(pip_name)
+
+    if not missing:
+        print(f"  All {len(packages)} required packages are installed. ✓")
+        return
+
+    print(f"\n  Missing {len(missing)} package(s): {', '.join(missing)}")
+    print("  Installing missing packages...\n")
+
+    req_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'requirements.txt')
+    try:
+        result = subprocess.run(
+            [sys.executable, '-m', 'pip', 'install', '-r', req_path],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            print(f"  Dependencies installed successfully. ✓")
+        else:
+            print(f"  pip install finished with warnings/errors (exit code {result.returncode}):")
+            # Show only meaningful error lines
+            for line in result.stderr.splitlines():
+                if line.strip():
+                    print(f"    {line.strip()}")
+
+            # Verify which packages are still missing after the attempt
+            still_missing = []
+            for pip_name in missing:
+                import_name = _IMPORT_NAME_MAP.get(pip_name.lower()) or pip_name.lower().replace('-', '_')
+                try:
+                    importlib.import_module(import_name)
+                except ImportError:
+                    still_missing.append(pip_name)
+
+            if still_missing:
+                print(f"\n  ⚠  Still missing after install: {', '.join(still_missing)}")
+                print("  Some features may not work. Try installing manually:")
+                print(f"    {sys.executable} -m pip install {' '.join(still_missing)}")
+            else:
+                print(f"  All packages resolved after install. ✓")
+    except Exception as e:
+        print(f"  Error running pip: {e}")
+        print(f"  Install manually:  {sys.executable} -m pip install -r requirements.txt")
+
+
+# =========================================================================
+# .env loader — reads .env file into os.environ at startup
+# =========================================================================
+
+def _load_env_file(filepath: str = _ENV_FILE):
+    """Parse a .env file and load variables into os.environ.
+
+    Only sets variables that are NOT already set in the environment,
+    so real env vars always take priority.
+    """
+    if not os.path.exists(filepath):
+        return
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' not in line:
+                continue
+            key, _, value = line.partition('=')
+            key = key.strip()
+            value = value.strip()
+            # Strip surrounding quotes if present
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                value = value[1:-1]
+            # Only set if not already present in environment
+            if key not in os.environ:
+                os.environ[key] = value
+
+
+def _update_env_file(updates: dict, filepath: str = _ENV_FILE):
+    """Update specific key=value pairs in the .env file.
+
+    Preserves comments, ordering, and unrelated lines.
+    If a key doesn't exist in the file, it is appended.
+    """
+    lines = []
+    if os.path.exists(filepath):
+        with open(filepath, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+    keys_written = set()
+    new_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith('#') and '=' in stripped:
+            key = stripped.split('=', 1)[0].strip()
+            if key in updates:
+                new_lines.append(f"{key}={updates[key]}\n")
+                keys_written.add(key)
+                continue
+        new_lines.append(line)
+
+    # Append any keys not already in the file
+    for key, value in updates.items():
+        if key not in keys_written:
+            new_lines.append(f"{key}={value}\n")
+
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.writelines(new_lines)
+
+
+# =========================================================================
+# API Token Setup — interactive first-run configuration
+# =========================================================================
+
+# All supported API tokens with metadata
+_API_TOKENS = [
+    {
+        'env_var': 'HF_TOKEN',
+        'name': 'HuggingFace',
+        'required_for': 'Downloading gated models (Llama, Gemma, Mistral, etc.) and pushing to Hub',
+        'signup_url': 'https://huggingface.co/join',
+        'token_url': 'https://huggingface.co/settings/tokens',
+        'category': 'model_access',
+    },
+    {
+        'env_var': 'OPENAI_API_KEY',
+        'name': 'OpenAI',
+        'required_for': 'GPT-4o, o3, o4-mini, GPT-4.1 via external chat/API',
+        'signup_url': 'https://platform.openai.com/signup',
+        'token_url': 'https://platform.openai.com/api-keys',
+        'category': 'external_api',
+    },
+    {
+        'env_var': 'ANTHROPIC_API_KEY',
+        'name': 'Anthropic',
+        'required_for': 'Claude 3.7/3.5 Sonnet, Opus via external chat/API',
+        'signup_url': 'https://console.anthropic.com/',
+        'token_url': 'https://console.anthropic.com/settings/keys',
+        'category': 'external_api',
+    },
+    {
+        'env_var': 'GOOGLE_API_KEY',
+        'name': 'Google AI (Gemini)',
+        'required_for': 'Gemini 2.5 Pro/Flash via external chat/API',
+        'signup_url': 'https://ai.google.dev/',
+        'token_url': 'https://aistudio.google.com/apikey',
+        'category': 'external_api',
+    },
+    {
+        'env_var': 'DEEPSEEK_API_KEY',
+        'name': 'DeepSeek',
+        'required_for': 'DeepSeek Chat/Reasoner via external chat/API',
+        'signup_url': 'https://platform.deepseek.com/',
+        'token_url': 'https://platform.deepseek.com/api_keys',
+        'category': 'external_api',
+    },
+]
+
+
+def _mask_key(key: str) -> str:
+    """Show first 4 and last 4 chars of a key, mask the rest."""
+    if len(key) <= 10:
+        return key[:2] + '*' * (len(key) - 2)
+    return key[:4] + '*' * (len(key) - 8) + key[-4:]
+
+
+def check_and_setup_api_tokens():
+    """Check API token status and offer interactive setup if tokens are missing.
+
+    Runs at startup after .env is loaded. Shows status of all tokens
+    with links to obtain them, and optionally lets the user enter keys.
+    """
+    print("\n  ─── API Token Status ─────────────────────────────")
+    print()
+
+    # Categorize tokens
+    configured = []
+    missing = []
+
+    for token_info in _API_TOKENS:
+        env_var = token_info['env_var']
+        value = os.environ.get(env_var, '').strip()
+        if value:
+            configured.append(token_info)
+        else:
+            missing.append(token_info)
+
+    # Show configured tokens
+    if configured:
+        for t in configured:
+            key_val = os.environ.get(t['env_var'], '')
+            print(f"  ✓ {t['name']:<20} {_mask_key(key_val)}")
+
+    # Show missing tokens
+    if missing:
+        if configured:
+            print()
+        for t in missing:
+            print(f"  ✗ {t['name']:<20} not set")
+            print(f"    {'':<20} Used for: {t['required_for']}")
+            print(f"    {'':<20} Get key:  {t['token_url']}")
+    else:
+        print(f"\n  All API tokens are configured. ✓")
+        print()
+        return
+
+    print()
+
+    # Only offer interactive setup if there are missing tokens
+    # and we're in an interactive terminal
+    if not sys.stdin.isatty():
+        print("  Set missing tokens in .env or as environment variables.\n")
+        return
+
+    try:
+        setup = input("  Would you like to set up API tokens now? [y/N/skip]: ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        print("\n  Skipping token setup.\n")
+        return
+
+    if setup not in ('y', 'yes'):
+        print("  Skipping — you can set tokens later in .env or re-run setup.\n")
+        return
+
+    print()
+    print("  ─── API Token Setup ──────────────────────────────")
+    print("  Paste each token when prompted. Press Enter to skip.")
+    print("  Tokens are saved to .env (git-ignored, never committed).")
+    print()
+
+    env_updates = {}
+
+    for t in missing:
+        print(f"  {t['name']}:")
+        print(f"    Sign up:  {t['signup_url']}")
+        print(f"    Get key:  {t['token_url']}")
+        try:
+            value = input(f"    {t['env_var']}: ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\n  Token setup cancelled.\n")
+            break
+
+        if value:
+            os.environ[t['env_var']] = value
+            env_updates[t['env_var']] = value
+            print(f"    ✓ Set {t['env_var']}")
+        else:
+            print(f"    – Skipped")
+        print()
+
+    # Save entered tokens to .env
+    if env_updates:
+        try:
+            _update_env_file(env_updates)
+            print(f"  Saved {len(env_updates)} token(s) to .env ✓")
+        except Exception as e:
+            print(f"  Warning: Could not save to .env: {e}")
+            print("  Tokens are set for this session but won't persist.")
+    print()
 
 
 def print_banner():
@@ -853,6 +1172,16 @@ def main():
     global _running
 
     print_banner()
+
+    # 1. Load .env file into os.environ (before anything else reads env vars)
+    _load_env_file()
+
+    # 2. Check and install missing dependencies
+    check_and_install_dependencies()
+
+    # 3. Check API tokens and offer interactive setup (only in interactive mode)
+    if len(sys.argv) <= 1:
+        check_and_setup_api_tokens()
 
     commands = {
         # Training & Data

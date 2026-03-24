@@ -48,11 +48,7 @@ A full-featured AI toolkit: custom transformer training, external API integratio
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Set up configuration (copy template & add your API keys)
-copy config\config.yaml.template config.yaml        # Windows
-copy config\.env.template .env                       # Windows
-
-# 3. Launch
+# 2. Launch (API tokens are configured on first run)
 python run.py
 ```
 
@@ -60,14 +56,16 @@ python run.py
 
 ## Setup & Configuration
 
-Configuration templates live in `config/`. Copy them to the project root and fill in your secrets:
+The main configuration files live in the project root. On first launch, `run.py` will automatically prompt you to set up API tokens interactively.
 
-| Template | Copy To | Purpose |
-|----------|---------|---------|
-| `config/config.yaml.template` | `config.yaml` | Model, training, API, and generation settings |
-| `config/.env.template` | `.env` | API keys and environment variables |
-| `config/docker-compose.yml.template` | `docker-compose.yml` | Docker Compose orchestration |
-| `config/pytest.ini.template` | `pytest.ini` | Test configuration |
+| File | Purpose |
+|------|---------|
+| `config.yaml` | Model, training, API, and generation settings |
+| `.env` | API keys, tokens, and environment variables |
+| `docker-compose.yml` | Docker Compose orchestration |
+| `pytest.ini` | Test configuration |
+
+> **Backup templates** are available in `config/` if you ever need to recreate a file from scratch.
 
 **API keys** can be set in `.env`, `config.yaml`, or as environment variables:
 
@@ -79,7 +77,7 @@ GOOGLE_API_KEY=AI...
 DEEPSEEK_API_KEY=sk-...
 ```
 
-The `.gitignore` ensures `config.yaml`, `.env`, `docker-compose.yml`, and `pytest.ini` are never committed.
+The `.gitignore` ensures `config.yaml`, `.env`, `docker-compose.yml`, and `pytest.ini` are never committed (they contain secrets). Backup templates in `config/` are tracked by git.
 
 ---
 
@@ -587,7 +585,7 @@ AI_Model/
 ├── requirements.txt            # Python dependencies
 ├── README.md                   # This file
 │
-├── config/                     # Config templates (copy & fill in secrets)
+├── config/                     # Backup config templates (for recreating files)
 │   ├── .env.template
 │   ├── config.yaml.template
 │   ├── docker-compose.yml.template

@@ -191,19 +191,42 @@ class PluginManager:
         del self.plugins[name]
         return True
 
-    def list_plugins(self):
-        """Display loaded plugins."""
-        if not self.plugins:
-            print("\n  No plugins loaded.")
-            print("  Create a plugin in plugins/<name>/ with manifest.json + main.py")
-            return
-        print(f"\n  Loaded Plugins ({len(self.plugins)}):")
-        print("  " + "-" * 50)
+    def list_plugins(self) -> List[Dict[str, Any]]:
+        """Return a list of plugin info dicts.
+
+        Each dict contains: name, version, description, loaded (bool),
+        num_commands, and path.
+        """
+        result: List[Dict[str, Any]] = []
+        # Include loaded plugins
         for name, info in self.plugins.items():
             m = info["manifest"]
-            cmds = len(info["commands"])
-            print(f"  {m.get('name', name):<20} v{m.get('version', '?'):<8} "
-                  f"[{cmds} cmd(s)] {m.get('description', '')}")
+            result.append({
+                "name": m.get("name", name),
+                "version": m.get("version", "?"),
+                "description": m.get("description", ""),
+                "loaded": True,
+                "num_commands": len(info["commands"]),
+                "path": info["path"],
+            })
+        # Include discovered-but-not-loaded plugins
+        for dir_name in self.discover():
+            if dir_name not in self.plugins:
+                manifest_path = os.path.join(self.plugin_dir, dir_name, "manifest.json")
+                try:
+                    with open(manifest_path, 'r') as f:
+                        m = json.load(f)
+                except Exception:
+                    m = {}
+                result.append({
+                    "name": m.get("name", dir_name),
+                    "version": m.get("version", "?"),
+                    "description": m.get("description", ""),
+                    "loaded": False,
+                    "num_commands": 0,
+                    "path": os.path.join(self.plugin_dir, dir_name),
+                })
+        return result
 
     def get_command(self, key: str) -> Optional[Callable]:
         """Get a plugin command by key."""

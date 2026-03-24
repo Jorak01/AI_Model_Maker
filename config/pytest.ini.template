@@ -1,9 +1,10 @@
 # Pytest Configuration
 # Copy to pytest.ini:
-#   cp pytest.ini.template pytest.ini
+#   cp config/pytest.ini.template pytest.ini
 
 [pytest]
 testpaths = tests
 python_files = test_*.py
 python_classes = Test*
 python_functions = test_*
+addopts = -v --tb=short

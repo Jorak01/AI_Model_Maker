@@ -67,7 +67,7 @@ api:
 
 # External API Configuration (for calling remote models)
 # ── ALL secrets (API keys, URLs) should be set in .env ──
-# See .env.template for the full list.  Environment variables
+# See .env for the full list.  Environment variables
 # override the values below.  Do NOT put real keys here.
 external_api:
   openai:

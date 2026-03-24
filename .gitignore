@@ -3,7 +3,8 @@
 # ============================================
 
 # --- Sensitive / Private Config Files ---
-# (Use corresponding .template files in config/ to recreate)
+# These are the main config files (contain secrets, never committed).
+# Backup templates in config/ can be used to recreate them if needed.
 config.yaml
 docker-compose.yml
 .env
@@ -63,3 +64,5 @@ desktop.ini
 /docker-compose.yml
 /__pycache__
 /.vscode
+/config.yaml
+/pytest.ini

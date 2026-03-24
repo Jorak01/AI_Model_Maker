@@ -1,10 +1,28 @@
 # Conversational AI Model Configuration
 # Copy this file to config.yaml and fill in your values:
-#   cp config.yaml.template config.yaml
+#   cp config/config.yaml.template config.yaml
 
 # Model Selection
+# Local baseline models (HuggingFace):
+#   "custom"       - Custom transformer (train from scratch, ~2M params)
+#   GPT-2 family:    "gpt2", "distilgpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"
+#   Pythia family:   "pythia-160m", "pythia-410m", "pythia-1b", "pythia-1.4b", "pythia-2.8b"
+#   Phi family:      "phi-2", "phi-3-mini", "phi-3.5-mini", "phi-4-mini"
+#   Llama family:    "llama-3.2-1b", "llama-3.2-3b"
+#   Mistral:         "mistral-7b"
+#   Gemma:           "gemma-2-2b"
+#   Qwen family:     "qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b"
+#   TinyLlama:       "tinyllama-1.1b"
+#   SmolLM family:   "smollm2-135m", "smollm2-360m", "smollm2-1.7b"
+#   StableLM:        "stablelm-2-1.6b"
+#   OLMo:            "olmo-1b"
+#   BLOOM:           "bloom-560m", "bloom-1.1b"
+#   Falcon:          "falcon-rw-1b"
+#   DeepSeek:        "deepseek-r1-distill-qwen-1.5b"
+#
+# Run 'refresh-models' in the runtime to verify availability on HuggingFace Hub.
 model:
-  base_model: "custom"        # See README.md for full list of supported models
+  base_model: "custom"        # Which baseline model to use
   vocab_size: 10000           # Only used for "custom" model
   embedding_dim: 256          # Only used for "custom" model
   hidden_dim: 512             # Only used for "custom" model
@@ -13,7 +31,11 @@ model:
   dropout: 0.1
   max_seq_length: 128
 
-# Training Pipeline: "scratch", "finetune", "freeze"
+# Training Pipeline
+# Options: "scratch", "finetune", "freeze"
+#   scratch  - Train custom model from scratch
+#   finetune - Fine-tune all layers of a pretrained model
+#   freeze   - Freeze base layers, only train top layers
 training:
   pipeline: "scratch"
   batch_size: 32
@@ -22,7 +44,7 @@ training:
   gradient_clip: 1.0
   warmup_steps: 500
   weight_decay: 0.01
-  freeze_layers: 4
+  freeze_layers: 4            # How many layers to freeze (for "freeze" pipeline)
 
 data:
   train_path: "data/train.json"
@@ -45,9 +67,9 @@ api:
   port: 8000
   debug: false
 
-# External API Configuration
+# External API Configuration (for calling remote models)
 # ── ALL secrets (API keys, URLs) should be set in .env ──
-# See .env.template for the full list.  Environment variables
+# See .env for the full list.  Environment variables
 # override the values below.  Do NOT put real keys here.
 external_api:
   openai:
@@ -74,22 +96,25 @@ external_api:
     base_url: ""               # Set CUSTOM_BASE_URL in .env
     default_model: ""          # Set CUSTOM_DEFAULT_MODEL in .env
 
-# Auto Training
+# Auto Training — Build models from public domain data
+# Uses web search, Wikipedia, and other public sources to collect data
+# and automatically build training datasets.
 auto_training:
-  sources:
+  sources:                    # Which public sources to search
     - wikipedia
     - web
-  max_pairs_per_topic: 150
-  epochs: 10
-  fetch_pages: true
-  cache_age: 86400
+  max_pairs_per_topic: 150    # Max training pairs per search topic
+  epochs: 10                  # Training epochs for auto-trained models
+  fetch_pages: true           # Fetch full web pages (not just snippets)
+  cache_age: 86400            # Cache web results for 24h (seconds)
 
-# Performance
+# Performance Optimization
+# These settings control speed optimizations across training and inference.
 performance:
-  mixed_precision: true
-  compile_model: true
-  num_workers: 0
-  cudnn_benchmark: true
+  mixed_precision: true       # AMP FP16 on GPU (2x speedup, less memory)
+  compile_model: true         # torch.compile() for PyTorch 2.0+ (faster kernels)
+  num_workers: 0              # DataLoader workers (0=main thread, 2-4 for large datasets)
+  cudnn_benchmark: true       # cuDNN auto-tuner for consistent input sizes
 
 device:
   use_cuda: true

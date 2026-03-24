@@ -2,8 +2,8 @@
 # Usage: docker-compose up
 # GPU:   docker-compose --profile gpu up
 #
-# All secrets and ports are read from .env (see .env.template).
-# Copy .env.template to .env and fill in your values before starting.
+# All secrets and ports are read from .env.
+# See .env for the full list of environment variables.
 
 version: "3.8"
 
