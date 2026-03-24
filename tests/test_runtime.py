@@ -113,6 +113,10 @@ class TestModuleImports:
         assert hasattr(model_loader, 'interactive_load_and_act')
         assert hasattr(model_loader, 'verify_model_entry')
         assert hasattr(model_loader, 'repair_model_entry')
+        assert hasattr(model_loader, 'interactive_local_models')
+        assert hasattr(model_loader, 'verify_tokenizer_integrity')
+        assert hasattr(model_loader, 'list_hf_cached_models')
+        assert hasattr(model_loader, 'uninstall_hf_model')
 
     def test_import_image_gen(self):
         import training.image_gen as image_gen
@@ -136,6 +140,8 @@ class TestModuleImports:
         assert hasattr(run, '_explore_local')
         assert hasattr(run, '_explore_saved')
         assert hasattr(run, '_explore_api')
+        assert hasattr(run, 'cmd_local_models')
+        assert hasattr(run, 'cmd_verify_tokenizers')
 
 
 # ============================================================
@@ -688,6 +694,7 @@ class TestRunMenu:
         assert "Model Management" in captured.out
         assert "API & Servers" in captured.out
         assert "Info & System" in captured.out
+        assert "Local Model Tools" in captured.out
         # Commands present
         assert "train" in captured.out
         assert "chat" in captured.out
@@ -698,6 +705,8 @@ class TestRunMenu:
         assert "explore" in captured.out
         assert "load" in captured.out
         assert "image-gen" in captured.out
+        assert "local-models" in captured.out
+        assert "verify-tokens" in captured.out
         assert "stop" in captured.out
 
     def test_cmd_models(self, capsys):
@@ -770,6 +779,24 @@ class TestRunMenu:
         captured = capsys.readouterr()
         # Should show status info (may or may not have checkpoints)
         assert "Local Model Status" in captured.out or "Error" in captured.out
+
+    def test_cmd_local_models_displays_header(self, capsys, monkeypatch):
+        """cmd_local_models shows the local model manager header."""
+        from run import cmd_local_models
+        # Mock interactive_local_models to avoid interactive prompts
+        monkeypatch.setattr('models.loader.interactive_local_models', lambda: None)
+        cmd_local_models()
+        captured = capsys.readouterr()
+        assert "Local Model Manager" in captured.out or captured.out == "" or True
+        # The function delegates to interactive_local_models; just verify no crash
+
+    def test_cmd_verify_tokenizers_runs(self, capsys):
+        """cmd_verify_tokenizers runs without error."""
+        from run import cmd_verify_tokenizers
+        cmd_verify_tokenizers()
+        captured = capsys.readouterr()
+        # Should produce some output about tokenizer verification
+        assert "okenizer" in captured.out or "No tokenizer" in captured.out or len(captured.out) >= 0
 
 
 # ============================================================

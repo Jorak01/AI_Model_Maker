@@ -226,6 +226,23 @@ STEPS = [
     • Domain mixing ratios"""
     ),
     (
+        "Step 12: Local Model Tools & Tokenizer Verification",
+        """  Manage all your locally stored models from one place!
+
+  Local Model Manager (choose 'local-models' from menu):
+    • Lists all HuggingFace cached, registered, and checkpoint models
+    • Prefixed IDs: H1 (HuggingFace), R1 (Registered), C1 (Checkpoint)
+    • Commands: load, uninstall, verify, verify-all, uninstall-all-hf
+    • Reclaims disk space by removing unused cached models
+
+  Tokenizer Verification (choose 'verify-tokens' from menu):
+    • Checks special token IDs (PAD, UNK, BOS, EOS, SEP)
+    • Encode/decode roundtrip validation
+    • Conversation encoding length checks
+    • Token2ID ↔ ID2Token consistency
+    • Runs automatically at startup for early error detection"""
+    ),
+    (
         "What's Next?",
         """  You've completed the tutorial! Here are some next steps:
 

@@ -407,6 +407,10 @@ def print_menu():
     print("  33  tutorial         Interactive tutorial")
     print("  34  test             Run all tests")
     print()
+    print("  ─── Local Model Tools ──────────────────────")
+    print("  35  local-models     Manage locally stored models")
+    print("  36  verify-tokens    Verify tokenizer integrity")
+    print()
     print("   0  stop / quit      Exit")
     print()
 
@@ -1163,6 +1167,26 @@ def cmd_tutorial():
         print(f"\n  Tutorial error: {e}")
 
 
+def cmd_local_models():
+    """Local model manager — list, load, verify, and uninstall all locally stored models."""
+    from models.loader import interactive_local_models
+    try:
+        interactive_local_models()
+    except KeyboardInterrupt:
+        print("\n  Local model manager cancelled.")
+    except Exception as e:
+        print(f"\n  Local model manager error: {e}")
+
+
+def cmd_verify_tokenizers():
+    """Verify integrity of all local tokenizers."""
+    from models.loader import verify_tokenizer_integrity
+    try:
+        verify_tokenizer_integrity(verbose=True)
+    except Exception as e:
+        print(f"\n  Tokenizer verification error: {e}")
+
+
 # =========================================================================
 # Main
 # =========================================================================
@@ -1182,6 +1206,13 @@ def main():
     # 3. Check API tokens and offer interactive setup (only in interactive mode)
     if len(sys.argv) <= 1:
         check_and_setup_api_tokens()
+
+    # 4. Quick tokenizer integrity check (non-verbose, just reports issues)
+    try:
+        from models.loader import verify_tokenizer_integrity
+        verify_tokenizer_integrity(verbose=False)
+    except Exception:
+        pass  # Don't block startup if verification fails
 
     commands = {
         # Training & Data
@@ -1226,6 +1257,9 @@ def main():
         '32': cmd_refresh_models, 'refresh-models': cmd_refresh_models, 'refresh': cmd_refresh_models,
         '33': cmd_tutorial, 'tutorial': cmd_tutorial,
         '34': cmd_test, 'test': cmd_test,
+        # Local Model Tools
+        '35': cmd_local_models, 'local-models': cmd_local_models, 'local': cmd_local_models,
+        '36': cmd_verify_tokenizers, 'verify-tokens': cmd_verify_tokenizers, 'verify': cmd_verify_tokenizers,
     }
 
     # If command-line args provided, run directly

@@ -35,6 +35,9 @@ A full-featured AI toolkit: custom transformer training, external API integratio
   - [Training Dashboard](#training-dashboard)
 - [Image Tools](#image-tools)
 - [Plugins](#plugins)
+- [Local Model Tools](#local-model-tools)
+  - [Local Model Manager](#local-model-manager)
+  - [Tokenizer Verification](#tokenizer-verification)
 - [Configuration Reference](#configuration-reference)
 - [Docker](#docker)
 - [Project Structure](#project-structure)
@@ -83,7 +86,7 @@ The `.gitignore` ensures `config.yaml`, `.env`, `docker-compose.yml`, and `pytes
 
 ## Interactive Runtime
 
-Run `python run.py` to launch the interactive menu with **34 commands** across 8 categories:
+Run `python run.py` to launch the interactive menu with **36 commands** across 9 categories:
 
 ```
   ─── Training & Data ─────────────────────────
@@ -136,6 +139,10 @@ Run `python run.py` to launch the interactive menu with **34 commands** across 8
   33  tutorial         Interactive tutorial
   34  test             Run all tests
 
+  ─── Local Model Tools ──────────────────────
+  35  local-models     Manage locally stored models
+  36  verify-tokens    Verify tokenizer integrity
+
    0  stop / quit      Exit
 ```
 
@@ -152,6 +159,8 @@ python run.py api            # Start REST API server
 python run.py explore        # Browse all models
 python run.py eval           # Run evaluation suite
 python run.py dashboard      # Launch training dashboard
+python run.py local-models   # Manage local models (load/uninstall)
+python run.py verify-tokens  # Verify tokenizer integrity
 ```
 
 ---
@@ -529,6 +538,77 @@ Create a plugin by adding a `plugins/<name>/manifest.json` with name, descriptio
 
 ---
 
+## Local Model Tools
+
+### Local Model Manager
+
+A unified hub for managing all locally stored models — HuggingFace cached, registered (custom-trained), and checkpoint models:
+
+```bash
+python run.py local-models
+```
+
+The manager displays all local models with a prefixed ID system:
+
+| Prefix | Source | Example | Description |
+|--------|--------|---------|-------------|
+| **H** | HuggingFace cache | `H1` | Downloaded pretrained models in `~/.cache/huggingface/hub/` |
+| **R** | Registered models | `R1` | Custom models created with `prompt-train` or `auto-train` |
+| **C** | Checkpoints | `C1` | Training checkpoints in `checkpoints/` |
+
+Interactive commands within the manager:
+
+| Command | Description |
+|---------|-------------|
+| `load H1` | Load a model by its prefixed ID |
+| `uninstall H2` | Delete a cached HuggingFace model |
+| `verify R1` | Verify a specific model's integrity |
+| `verify-all` | Verify all installed models |
+| `uninstall-all-hf` | Remove all cached HuggingFace models |
+| `back` / `0` | Return to the main menu |
+
+Programmatic usage:
+
+```python
+from models.loader import list_hf_cached_models, uninstall_hf_model
+
+# List all HuggingFace models in the local cache
+models = list_hf_cached_models()
+for m in models:
+    print(f"{m['org']}/{m['model']} — {m['size_str']}")
+
+# Uninstall a specific cached model
+uninstall_hf_model("openai-community/gpt2")
+```
+
+### Tokenizer Verification
+
+Verify that all available tokenizers are functioning correctly:
+
+```bash
+python run.py verify-tokens
+```
+
+The verification checks each tokenizer for:
+
+- **Special token IDs** — PAD, UNK, BOS, EOS, SEP tokens have valid IDs
+- **Encode/decode roundtrip** — encoding then decoding produces the original text
+- **Conversation encoding** — prompt/response pairs encode to the correct length
+- **Token2ID/ID2token consistency** — forward and reverse mappings agree
+
+Tokenizer verification also runs automatically at startup when the runtime launches, providing early warning of any corruption.
+
+Programmatic usage:
+
+```python
+from models.loader import verify_tokenizer_integrity
+
+# Returns True if all tokenizers pass, False otherwise
+ok = verify_tokenizer_integrity(verbose=True)
+```
+
+---
+
 ## Configuration Reference
 
 All settings in `config.yaml`:
@@ -612,7 +692,7 @@ AI_Model/
 │   ├── model_factory.py        #   Model factory (creates/loads any baseline)
 │   ├── tokenizer.py            #   Text tokenizer (word/char)
 │   ├── registry.py             #   Named model registry (save/load/delete)
-│   └── loader.py               #   Universal model loader
+│   └── loader.py               #   Universal model loader & local model manager
 │
 ├── utils/                      # Utilities and tools
 │   ├── data_loader.py          #   Dataset and data loader creation

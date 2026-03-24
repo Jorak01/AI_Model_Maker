@@ -219,6 +219,510 @@ def _get_untrained_models() -> List[Dict]:
     return entries
 
 
+# ── HuggingFace cache management ────────────────────────────────────────
+
+def _get_hf_cache_dir() -> str:
+    """Return the HuggingFace hub cache directory."""
+    hf_home = os.environ.get("HF_HOME", os.path.join(os.path.expanduser("~"), ".cache", "huggingface"))
+    return os.path.join(hf_home, "hub")
+
+
+def _dir_size(path: str) -> int:
+    """Recursively sum file sizes in a directory."""
+    total = 0
+    for dirpath, _dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            try:
+                total += os.path.getsize(fp)
+            except OSError:
+                pass
+    return total
+
+
+def list_hf_cached_models() -> List[Dict]:
+    """List all HuggingFace models downloaded in the local cache.
+
+    Returns list of dicts with: name, hf_id, path, size, size_str, last_modified.
+    """
+    cache_dir = _get_hf_cache_dir()
+    results = []
+
+    if not os.path.isdir(cache_dir):
+        return results
+
+    # Build reverse lookup: hf_id -> friendly name
+    reverse_map = {}
+    for friendly_name, hf_id in PRETRAINED_MODELS.items():
+        reverse_map[hf_id] = friendly_name
+
+    for entry in sorted(os.listdir(cache_dir)):
+        if not entry.startswith("models--"):
+            continue
+        model_dir = os.path.join(cache_dir, entry)
+        snapshots = os.path.join(model_dir, "snapshots")
+        if not os.path.isdir(snapshots) or not os.listdir(snapshots):
+            continue
+
+        # Parse hf_id from directory name (models--org--name → org/name)
+        hf_id = entry.replace("models--", "").replace("--", "/")
+        friendly = reverse_map.get(hf_id, "")
+        size = _dir_size(model_dir)
+        meta = _get_file_metadata(model_dir)
+
+        results.append({
+            "hf_id": hf_id,
+            "friendly_name": friendly,
+            "display_name": friendly or hf_id,
+            "path": model_dir,
+            "size": size,
+            "size_str": _format_size(size),
+            "last_modified": meta.get("last_modified"),
+            "last_modified_str": meta.get("last_modified_str", "—"),
+        })
+
+    return results
+
+
+def uninstall_hf_model(hf_id: str) -> bool:
+    """Delete a HuggingFace model from the local cache.
+
+    Args:
+        hf_id: The HuggingFace model ID (e.g., 'gpt2' or 'microsoft/phi-2').
+
+    Returns:
+        True if deleted successfully, False otherwise.
+    """
+    import shutil
+    cache_dir = _get_hf_cache_dir()
+    safe_id = hf_id.replace("/", "--")
+    model_dir = os.path.join(cache_dir, f"models--{safe_id}")
+
+    if not os.path.isdir(model_dir):
+        print(f"  ✗ Model '{hf_id}' not found in cache.")
+        return False
+
+    size = _dir_size(model_dir)
+    try:
+        shutil.rmtree(model_dir)
+        print(f"  ✓ Removed '{hf_id}' from cache ({_format_size(size)} freed)")
+        return True
+    except Exception as e:
+        print(f"  ✗ Error removing '{hf_id}': {e}")
+        return False
+
+
+def interactive_local_models():
+    """Interactive flow to list, load, or uninstall all locally stored models.
+
+    Shows: HuggingFace cached models, checkpoint models, registered models.
+    """
+    config = _load_config()
+    device = _get_device(config)
+
+    while True:
+        # Gather all local models
+        hf_models = list_hf_cached_models()
+        registered = _get_registered_models()
+        checkpoints = _get_checkpoint_models(config)
+
+        total_hf_size = sum(m["size"] for m in hf_models)
+        total_reg_size = sum((m.get("file_size") or 0) for m in registered)
+        total_ckpt_size = sum((m.get("file_size") or 0) for m in checkpoints)
+        total_size = total_hf_size + total_reg_size + total_ckpt_size
+
+        print("\n" + "=" * 80)
+        print("       Local Model Manager")
+        print("=" * 80)
+        print(f"  Total local storage: {_format_size(total_size)}")
+
+        # ── HuggingFace cached models ──
+        print(f"\n  ── HuggingFace Cache ({len(hf_models)} models, {_format_size(total_hf_size)}) ──")
+        if hf_models:
+            print(f"  {'#':<5} {'Model':<35} {'Size':>10}  {'Last Used'}")
+            print("  " + "-" * 70)
+            for i, m in enumerate(hf_models, 1):
+                label = m["display_name"]
+                if m["friendly_name"] and m["friendly_name"] != m["hf_id"]:
+                    label = f"{m['friendly_name']} ({m['hf_id']})"
+                print(f"  H{i:<4} {label:<35} {m['size_str']:>10}  {m['last_modified_str']}")
+        else:
+            print("  (none)")
+
+        # ── Registered models ──
+        print(f"\n  ── Registered Models ({len(registered)} models, {_format_size(total_reg_size)}) ──")
+        if registered:
+            print(f"  {'#':<5} {'Name':<25} {'Base':<15} {'Size':>10}  {'Last Trained'}")
+            print("  " + "-" * 70)
+            for i, m in enumerate(registered, 1):
+                size_str = m.get("file_size_str", "—")
+                trained = m.get("last_trained_str", "—")
+                print(f"  R{i:<4} {m['name']:<25} {m['base_model']:<15} {size_str:>10}  {trained}")
+        else:
+            print("  (none)")
+
+        # ── Checkpoints ──
+        print(f"\n  ── Checkpoints ({len(checkpoints)} files, {_format_size(total_ckpt_size)}) ──")
+        if checkpoints:
+            print(f"  {'#':<5} {'Name':<25} {'Base':<15} {'Size':>10}  {'Last Trained'}")
+            print("  " + "-" * 70)
+            for i, m in enumerate(checkpoints, 1):
+                size_str = m.get("file_size_str", "—")
+                trained = m.get("last_trained_str", "—")
+                print(f"  C{i:<4} {m['name']:<25} {m['base_model']:<15} {size_str:>10}  {trained}")
+        else:
+            print("  (none)")
+
+        # ── Actions ──
+        print(f"\n  ── Actions ──")
+        print("  load <id>        Load a model (e.g., 'load R1', 'load H2')")
+        print("  uninstall <id>   Remove from disk (e.g., 'uninstall H1')")
+        print("  verify <id>      Check model integrity")
+        print("  verify-all       Verify all installed models")
+        print("  uninstall-all-hf Remove ALL cached HuggingFace models")
+        print("  back             Return to main menu")
+        print()
+
+        try:
+            cmd = input("  local-models>> ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\n  Returning to menu...")
+            break
+
+        if not cmd or cmd.lower() in ('back', 'quit', 'exit', 'q', '0'):
+            break
+
+        parts = cmd.split(None, 1)
+        action = parts[0].lower()
+        target = parts[1].strip() if len(parts) > 1 else ""
+
+        if action == 'load':
+            _local_models_load(target, hf_models, registered, checkpoints, config, device)
+        elif action == 'uninstall':
+            _local_models_uninstall(target, hf_models, registered, checkpoints)
+        elif action == 'verify' and target:
+            _local_models_verify(target, hf_models, registered, checkpoints, device)
+        elif action == 'verify-all':
+            _local_models_verify_all(hf_models, registered, checkpoints, device)
+        elif action == 'uninstall-all-hf':
+            _local_models_uninstall_all_hf(hf_models)
+        else:
+            print(f"  Unknown command: '{cmd}'. Try 'load H1', 'uninstall R2', 'verify C1', or 'back'.")
+
+
+def _parse_local_id(target: str, hf_models, registered, checkpoints):
+    """Parse an ID like H1, R2, C3 and return (category, index, entry)."""
+    target = target.strip().upper()
+    if not target:
+        return None, None, None
+
+    prefix = target[0]
+    try:
+        idx = int(target[1:]) - 1
+    except (ValueError, IndexError):
+        return None, None, None
+
+    if prefix == 'H' and 0 <= idx < len(hf_models):
+        return 'hf', idx, hf_models[idx]
+    elif prefix == 'R' and 0 <= idx < len(registered):
+        return 'registered', idx, registered[idx]
+    elif prefix == 'C' and 0 <= idx < len(checkpoints):
+        return 'checkpoint', idx, checkpoints[idx]
+    return None, None, None
+
+
+def _local_models_load(target, hf_models, registered, checkpoints, config, device):
+    """Load a model from the local model manager."""
+    category, idx, entry = _parse_local_id(target, hf_models, registered, checkpoints)
+    if entry is None:
+        print(f"  ✗ Invalid ID: '{target}'. Use format like H1, R2, C3.")
+        return
+
+    if category == 'hf':
+        # Load the HF model fresh
+        hf_id = entry["hf_id"]
+        friendly = entry.get("friendly_name", "")
+        model_key = friendly or hf_id
+        print(f"\n  Loading HuggingFace model: {hf_id}")
+        try:
+            model_config = dict(config)
+            model_config['model'] = dict(config.get('model', {}))
+            model_config['training'] = dict(config.get('training', {}))
+            model_config['model']['base_model'] = model_key if model_key in MODEL_INFO else 'custom'
+            model_config['training']['pipeline'] = 'finetune'
+            model = create_model(model_config)
+            model = model.to(device)
+            total_params = sum(p.numel() for p in model.parameters())
+            print(f"  ✓ Loaded {hf_id} ({total_params:,} parameters)")
+        except Exception as e:
+            print(f"  ✗ Error loading: {e}")
+    elif category in ('registered', 'checkpoint'):
+        model_path = entry.get("model_path")
+        tok_path = entry.get("tokenizer_path")
+        if not model_path or not os.path.exists(model_path):
+            print(f"  ✗ Model file not found: {model_path}")
+            return
+        try:
+            model = factory_load_model(model_path, device=device)
+            tokenizer = Tokenizer.load(tok_path) if tok_path and os.path.exists(tok_path) else None
+            print(f"  ✓ Loaded {entry['name']}")
+            if tokenizer:
+                print(f"  ✓ Tokenizer: {len(tokenizer)} tokens")
+        except Exception as e:
+            print(f"  ✗ Error loading: {e}")
+
+
+def _local_models_uninstall(target, hf_models, registered, checkpoints):
+    """Uninstall/delete a model from the local model manager."""
+    category, idx, entry = _parse_local_id(target, hf_models, registered, checkpoints)
+    if entry is None:
+        print(f"  ✗ Invalid ID: '{target}'. Use format like H1, R2, C3.")
+        return
+
+    if category == 'hf':
+        hf_id = entry["hf_id"]
+        size_str = entry["size_str"]
+        try:
+            confirm = input(f"  Uninstall '{hf_id}' ({size_str})? [y/N]: ").strip().lower()
+            if confirm != 'y':
+                print("  Cancelled.")
+                return
+        except (KeyboardInterrupt, EOFError):
+            print("\n  Cancelled.")
+            return
+        uninstall_hf_model(hf_id)
+    elif category == 'registered':
+        delete_model_entry(entry, confirm=True)
+    elif category == 'checkpoint':
+        delete_model_entry(entry, confirm=True)
+
+
+def _local_models_verify(target, hf_models, registered, checkpoints, device):
+    """Verify a specific model's integrity."""
+    category, idx, entry = _parse_local_id(target, hf_models, registered, checkpoints)
+    if entry is None:
+        print(f"  ✗ Invalid ID: '{target}'. Use format like H1, R2, C3.")
+        return
+
+    if category == 'hf':
+        # For HF models, just check cache integrity
+        hf_id = entry["hf_id"]
+        model_dir = entry["path"]
+        snapshots = os.path.join(model_dir, "snapshots")
+        print(f"\n  ── Verifying HF model: {hf_id} ──")
+        if os.path.isdir(snapshots) and os.listdir(snapshots):
+            snapshot_dirs = os.listdir(snapshots)
+            print(f"  ✓ Cache directory exists")
+            print(f"  ✓ {len(snapshot_dirs)} snapshot(s) found")
+            print(f"  ✓ Size: {entry['size_str']}")
+            # Try to actually load it
+            try:
+                from transformers import AutoConfig
+                config_data = AutoConfig.from_pretrained(hf_id, local_files_only=True)
+                print(f"  ✓ Config loads: {config_data.model_type}")
+            except Exception as e:
+                print(f"  ⚠ Config check: {e}")
+            print(f"\n  Result: PASS")
+        else:
+            print(f"  ✗ No snapshots found — cache may be incomplete")
+            print(f"\n  Result: FAIL")
+    else:
+        verify_model_entry(entry, device)
+
+
+def _local_models_verify_all(hf_models, registered, checkpoints, device):
+    """Verify all installed models."""
+    all_entries = []
+    for m in hf_models:
+        all_entries.append(('hf', m))
+    for m in registered:
+        all_entries.append(('registered', m))
+    for m in checkpoints:
+        all_entries.append(('checkpoint', m))
+
+    if not all_entries:
+        print("  No local models to verify.")
+        return
+
+    print(f"\n  Verifying {len(all_entries)} model(s)...")
+    passed = 0
+    failed = 0
+
+    for category, entry in all_entries:
+        name = entry.get("display_name") or entry.get("name", "unknown")
+        if category == 'hf':
+            snapshots = os.path.join(entry["path"], "snapshots")
+            ok = os.path.isdir(snapshots) and bool(os.listdir(snapshots))
+            mark = "✓" if ok else "✗"
+            print(f"  {mark} [HF] {name} ({entry['size_str']})")
+            if ok:
+                passed += 1
+            else:
+                failed += 1
+        else:
+            result = verify_model_entry(entry, device, verbose=False)
+            mark = "✓" if result["ok"] else "✗"
+            src = entry.get("source", "?")[:3].upper()
+            size = entry.get("file_size_str", "—")
+            print(f"  {mark} [{src}] {name} ({size})")
+            if result["ok"]:
+                passed += 1
+            else:
+                failed += 1
+                for err in result["errors"]:
+                    print(f"      └─ {err}")
+
+    print(f"\n  Results: {passed} passed, {failed} failed out of {len(all_entries)} total")
+
+
+def _local_models_uninstall_all_hf(hf_models):
+    """Uninstall all cached HuggingFace models."""
+    if not hf_models:
+        print("  No HuggingFace models in cache.")
+        return
+
+    total_size = sum(m["size"] for m in hf_models)
+    print(f"\n  This will remove {len(hf_models)} model(s) ({_format_size(total_size)}) from the HF cache.")
+    for m in hf_models:
+        print(f"    - {m['display_name']} ({m['size_str']})")
+
+    try:
+        confirm = input(f"\n  Remove ALL {len(hf_models)} cached models? [y/N]: ").strip().lower()
+        if confirm != 'y':
+            print("  Cancelled.")
+            return
+    except (KeyboardInterrupt, EOFError):
+        print("\n  Cancelled.")
+        return
+
+    for m in hf_models:
+        uninstall_hf_model(m["hf_id"])
+
+    print(f"\n  ✓ Removed {len(hf_models)} model(s), freed {_format_size(total_size)}")
+
+
+# ── Tokenizer integrity verification ────────────────────────────────────
+
+def verify_tokenizer_integrity(verbose: bool = True) -> bool:
+    """Verify that all available tokenizers are functioning correctly.
+
+    Checks:
+      - Tokenizer file loads without errors
+      - Special tokens have correct IDs
+      - Encode/decode roundtrip works
+      - Vocab is non-empty
+      - Conversation encoding works
+
+    Args:
+        verbose: Print progress and results to console.
+
+    Returns:
+        True if all tokenizers pass, False if any fail.
+    """
+    tokenizer_paths = []
+
+    # Find tokenizers in checkpoints/
+    try:
+        with open('config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+        ckpt_dir = config.get('checkpoint', {}).get('save_dir', 'checkpoints')
+        tok = os.path.join(ckpt_dir, 'tokenizer.pkl')
+        if os.path.exists(tok):
+            tokenizer_paths.append(("checkpoints", tok))
+    except Exception:
+        pass
+
+    # Find tokenizers in registered models
+    try:
+        registry = _load_registry()
+        for key, info in registry.get("models", {}).items():
+            tok = os.path.join(info["path"], "tokenizer.pkl")
+            if os.path.exists(tok):
+                tokenizer_paths.append((f"registered/{key}", tok))
+    except Exception:
+        pass
+
+    if not tokenizer_paths:
+        if verbose:
+            print("  No tokenizers found to verify.")
+        return True
+
+    if verbose:
+        print(f"\n  ─── Tokenizer Integrity Check ────────────────────")
+        print(f"  Found {len(tokenizer_paths)} tokenizer(s) to verify.\n")
+
+    all_passed = True
+
+    for label, path in tokenizer_paths:
+        errors = []
+        try:
+            tok = Tokenizer.load(path)
+
+            # Check 1: Special tokens
+            if tok.pad_token_id != 0:
+                errors.append(f"PAD token ID is {tok.pad_token_id}, expected 0")
+            if tok.unk_token_id != 1:
+                errors.append(f"UNK token ID is {tok.unk_token_id}, expected 1")
+            if tok.bos_token_id != 2:
+                errors.append(f"BOS token ID is {tok.bos_token_id}, expected 2")
+            if tok.eos_token_id != 3:
+                errors.append(f"EOS token ID is {tok.eos_token_id}, expected 3")
+            if tok.sep_token_id != 4:
+                errors.append(f"SEP token ID is {tok.sep_token_id}, expected 4")
+
+            # Check 2: Vocab non-empty (must have at least the 5 special tokens)
+            if len(tok) < 5:
+                errors.append(f"Vocab too small: {len(tok)} tokens (minimum 5)")
+
+            # Check 3: Encode/decode roundtrip
+            test_text = "hello world this is a test"
+            encoded = tok.encode(test_text, add_special=True)
+            if not encoded or len(encoded) < 3:
+                errors.append(f"Encode produced too few tokens: {len(encoded)}")
+            decoded = tok.decode(encoded, skip_special=True)
+            if not decoded.strip():
+                errors.append("Decode produced empty output")
+
+            # Check 4: Conversation encoding
+            try:
+                ids, target = tok.encode_conversation("hello", "world", max_length=32)
+                if len(ids) != 32:
+                    errors.append(f"Conversation encoding wrong length: {len(ids)} (expected 32)")
+                if ids[0] != tok.bos_token_id:
+                    errors.append(f"Conversation missing BOS token at start")
+            except Exception as e:
+                errors.append(f"Conversation encoding failed: {e}")
+
+            # Check 5: token2id ↔ id2token consistency
+            for token, tid in list(tok.token2id.items())[:100]:
+                if tok.id2token.get(tid) != token:
+                    errors.append(f"token2id/id2token mismatch for '{token}'")
+                    break
+
+        except Exception as e:
+            errors.append(f"Failed to load: {e}")
+
+        passed = len(errors) == 0
+        if not passed:
+            all_passed = False
+
+        if verbose:
+            mark = "✓" if passed else "✗"
+            vocab_info = f"{len(tok)} tokens" if passed and 'tok' in dir() else "?"
+            print(f"  {mark} {label}: {path}")
+            if passed:
+                print(f"    Vocab: {len(tok)} tokens, roundtrip OK, special tokens OK")
+            else:
+                for err in errors:
+                    print(f"    ✗ {err}")
+
+    if verbose:
+        status = "ALL PASSED ✓" if all_passed else "ISSUES FOUND ✗"
+        print(f"\n  Tokenizer check: {status}")
+
+    return all_passed
+
+
 # ── Unified catalog ──────────────────────────────────────────────────────
 
 def build_model_catalog(config: Optional[dict] = None) -> List[Dict]:
